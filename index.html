@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IB Exam Booklet Generator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#f4f4f0;color:#1a1a18;min-height:100vh;padding:2rem 1rem}
+.container{max-width:780px;margin:0 auto}
+h1{font-size:22px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+.subtitle{font-size:13px;color:#5f5e5a;margin-bottom:2rem}
+.card{background:white;border-radius:12px;border:1px solid #e0dfd7;padding:1.5rem;margin-bottom:1rem}
+.card h2{font-size:14px;font-weight:500;margin-bottom:1rem;color:#1a1a18}
+.api-card{background:#fdf8ee;border-color:#f0d99a}
+.api-card h2{color:#7a5200}
+.api-note{font-size:11px;color:#7a5200;margin-top:6px}
+.api-note a{color:#7a5200}
+.api-row{display:flex;gap:8px;align-items:center}
+.api-row input{flex:1;padding:9px 12px;border:1px solid #ddd5b0;border-radius:8px;font-size:13px;font-family:monospace;background:white}
+.status-dot{width:10px;height:10px;border-radius:50%;background:#ccc;flex-shrink:0}
+.status-dot.ok{background:#5a9e1a}
+.status-dot.err{background:#cc3333}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.upload-zone{border:2px dashed #d4d2c9;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;transition:all 0.15s}
+.upload-zone:hover{border-color:#378ADD;background:#f0f6ff}
+.upload-zone.has-file{border-style:solid;border-color:#5a9e1a;background:#f0f8e8}
+.upload-zone .icon{font-size:28px;margin-bottom:8px}
+.upload-zone .uz-label{font-size:13px;font-weight:500;margin-bottom:3px}
+.upload-zone .uz-sub{font-size:11px;color:#888}
+.upload-zone .uz-file{font-size:11px;font-weight:500;color:#3b6d11;margin-top:4px;word-break:break-all}
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+label.field-lbl{display:block;font-size:11px;color:#888;margin-bottom:5px}
+select,input[type=text]{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:white;color:#1a1a18}
+.slider-row{display:flex;align-items:center;gap:10px}
+.slider-row input{flex:1}
+.pct{font-size:14px;font-weight:600;color:#185fa5;min-width:38px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all 0.12s}
+.btn-primary{background:#185fa5;color:white}
+.btn-primary:hover{background:#0c447c}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+.btn-success{background:#3b6d11;color:white}
+.btn-success:hover{background:#27500a}
+.btn-outline{background:transparent;border:1px solid #ddd;color:#444}
+.btn-outline:hover{background:#f4f4f0}
+.action-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:1rem}
+.ready-msg{font-size:12px;color:#888}
+.progress-card{display:none}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.progress-title{font-size:14px;font-weight:500}
+.progress-pct{font-size:13px;color:#888}
+.bar-wrap{height:6px;background:#eee;border-radius:3px;margin-bottom:12px}
+.bar-fill{height:100%;border-radius:3px;background:#378ADD;transition:width 0.4s}
+.log{font-size:12px;color:#666;max-height:150px;overflow-y:auto}
+.log-line{padding:3px 0;display:flex;align-items:center;gap:8px;line-height:1.4}
+.log-line.done{color:#3b6d11}
+.log-line.active{color:#185fa5}
+.log-line.err{color:#cc3333}
+.spinner{width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.results-card{display:none}
+.tabs{display:flex;gap:8px;margin-bottom:1rem}
+.tab{padding:6px 16px;font-size:12px;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:transparent;color:#888;font-family:inherit}
+.tab.active{background:#e6f1fb;color:#185fa5;border-color:#378ADD}
+.preview{background:#f9f9f7;border:1px solid #eee;border-radius:8px;padding:1.25rem;font-size:12px;line-height:1.75;max-height:400px;overflow-y:auto}
+.dl-row{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap}
+.alert{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:1rem}
+.alert-success{background:#eaf3de;color:#3b6d11;border:1px solid #c0dd97}
+.alert-warn{background:#fff8e6;color:#7a5200;border:1px solid #f0d99a}
+.ib-hdr{border-bottom:2px solid #185fa5;padding-bottom:8px;margin-bottom:14px}
+.ib-hdr .title{font-size:14px;font-weight:bold;font-family:'Times New Roman',serif}
+.ib-hdr .sub{font-size:10px;color:#888;margin-top:2px;font-family:'Times New Roman',serif}
+.q{margin-bottom:14px;border-left:3px solid #b5d4f4;padding-left:10px;font-family:'Times New Roman',serif}
+.q.ms-q{border-left-color:#9fe1cb}
+.q-n{font-weight:bold;font-size:11px;color:#185fa5}
+.q-n.ms-n{color:#0f6e56}
+.q-t{font-size:11px}
+.q-m{font-size:10px;color:#888;font-style:italic}
+.ans{margin-top:5px;padding:7px 10px;background:white;border-left:2px solid #5dcaa5;border-radius:0 4px 4px 0;font-size:11px;font-style:italic;white-space:pre-wrap}
+.space{height:1px;background:#e0dfd7;margin:6px 0}
+.server-warn{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:1rem;display:none}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📘 IB Exam Booklet Generator</h1>
+  <p class="subtitle">Upload QP + MS PDFs → AI rewrites questions → Download new practice booklets</p>
+
+  <div class="server-warn" id="serverWarn">
+    ⚠️ Cannot reach local proxy server. Make sure <code>server.py</code> is running:
+    <code style="display:block;margin-top:4px;background:#fff;padding:4px 8px;border-radius:4px">python3 server.py</code>
+  </div>
+
+  <div class="card api-card">
+    <h2>🔑 Anthropic API Key</h2>
+    <div class="api-row">
+      <div class="status-dot" id="statusDot"></div>
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." oninput="checkReady()">
+    </div>
+    <div class="api-note">Get your key at <a href="https://console.anthropic.com/settings/keys">console.anthropic.com</a> — never leaves your machine.</div>
+  </div>
+
+  <div class="card">
+    <h2>📂 Upload PDF Files</h2>
+    <div class="upload-grid">
+      <div>
+        <div class="upload-zone" id="qpZone" onclick="document.getElementById('qpInput').click()">
+          <div class="icon">📄</div>
+          <div class="uz-label">Question Paper (QP)</div>
+          <div class="uz-sub">Click to upload PDF</div>
+          <div class="uz-file" id="qpName"></div>
+        </div>
+        <input type="file" id="qpInput" accept=".pdf" style="display:none">
+      </div>
+      <div>
+        <div class="upload-zone" id="msZone" onclick="document.getElementById('msInput').click()">
+          <div class="icon">✅</div>
+          <div class="uz-label">Mark Scheme (MS)</div>
+          <div class="uz-sub">Click to upload PDF</div>
+          <div class="uz-file" id="msName"></div>
+        </div>
+        <input type="file" id="msInput" accept=".pdf" style="display:none">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>⚙️ Settings</h2>
+    <div class="cfg-grid">
+      <div><label class="field-lbl">IB Subject</label>
+        <select id="subject">
+          <option>Biology HL/SL</option><option>Chemistry HL/SL</option><option>Physics HL/SL</option>
+          <option>Mathematics AA HL/SL</option><option>Mathematics AI HL/SL</option>
+          <option>Economics HL/SL</option><option>English A Language & Literature</option>
+          <option>History HL/SL</option><option>Geography HL/SL</option>
+          <option>Psychology HL/SL</option><option>Computer Science HL/SL</option><option>Other</option>
+        </select>
+      </div>
+      <div><label class="field-lbl">Session label</label>
+        <input type="text" id="sessionLabel" value="May 2025 — Practice Paper">
+      </div>
+    </div>
+    <div class="cfg-grid">
+      <div><label class="field-lbl">Rewrite intensity</label>
+        <div class="slider-row">
+          <input type="range" min="20" max="60" value="30" id="rewritePct" oninput="document.getElementById('pctVal').textContent=this.value+'%'">
+          <span class="pct" id="pctVal">30%</span>
+        </div>
+      </div>
+      <div><label class="field-lbl">Paper / Level</label>
+        <div style="display:flex;gap:6px">
+          <select id="paperNum"><option>Paper 1</option><option>Paper 2</option><option>Paper 3</option></select>
+          <select id="level"><option>HL</option><option>SL</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="action-row">
+      <button class="btn btn-primary" id="generateBtn" onclick="startGeneration()" disabled>✨ Generate Booklets</button>
+      <span class="ready-msg" id="readyMsg">Enter API key and upload both PDFs</span>
+    </div>
+  </div>
+
+  <div class="card progress-card" id="progressCard">
+    <div class="progress-header">
+      <span class="progress-title" id="progressTitle">Processing...</span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="bar-wrap"><div class="bar-fill" id="progressBar" style="width:0%"></div></div>
+    <div class="log" id="progressLog"></div>
+  </div>
+
+  <div class="card results-card" id="resultsCard">
+    <div class="alert alert-success">✅ Booklets generated successfully! Preview below, then download.</div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('qp',this)">📄 Question Paper</button>
+      <button class="tab" onclick="switchTab('ms',this)">✅ Mark Scheme</button>
+    </div>
+    <div id="previewQP" class="preview"></div>
+    <div id="previewMS" class="preview" style="display:none"></div>
+    <div class="dl-row">
+      <button class="btn btn-success" onclick="downloadPDF('qp')">⬇️ Download QP PDF</button>
+      <button class="btn btn-success" onclick="downloadPDF('ms')">⬇️ Download MS PDF</button>
+      <button class="btn btn-outline" onclick="resetAll()">🔄 Start over</button>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let qpFile=null,msFile=null,generatedQP='',generatedMS='',pData=null;
+const PROXY='http://localhost:5050/api/claude';
+
+document.getElementById('qpInput').addEventListener('change',e=>{qpFile=e.target.files[0];if(qpFile){document.getElementById('qpZone').classList.add('has-file');document.getElementById('qpName').textContent=qpFile.name;}checkReady();});
+document.getElementById('msInput').addEventListener('change',e=>{msFile=e.target.files[0];if(msFile){document.getElementById('msZone').classList.add('has-file');document.getElementById('msName').textContent=msFile.name;}checkReady();});
+
+function checkReady(){
+  const key=document.getElementById('apiKey').value.trim();
+  const btn=document.getElementById('generateBtn'),msg=document.getElementById('readyMsg'),dot=document.getElementById('statusDot');
+  dot.className='status-dot'+(key.startsWith('sk-ant')?'ok':key?' err':'');
+  if(key&&qpFile&&msFile){btn.disabled=false;msg.textContent='Ready — click to generate';msg.style.color='#3b6d11';}
+  else{btn.disabled=true;msg.textContent=!key?'Enter your Anthropic API key':'Upload both PDF files';msg.style.color='';}
+}
+
+async function extractPDFText(file){
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  let text='';
+  for(let i=1;i<=pdf.numPages;i++){
+    const pg=await pdf.getPage(i);
+    const c=await pg.getTextContent();
+    text+=`\n--- Page ${i} ---\n`+c.items.map(x=>x.str).join(' ');
+  }
+  return text;
+}
+
+function log(msg,status='active'){
+  const el=document.getElementById('progressLog');
+  const d=document.createElement('div');
+  d.className='log-line '+(status||'');
+  const icon=status==='done'?'✓':status==='active'?'<span class="spinner"></span>':status==='err'?'✗':'•';
+  d.innerHTML=(status==='active'?icon:'<span>'+icon+'</span>')+' <span>'+msg+'</span>';
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+  return d;
+}
+
+function setProgress(pct,title){
+  document.getElementById('progressBar').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=pct+'%';
+  if(title)document.getElementById('progressTitle').textContent=title;
+}
+
+async function callClaude(prompt,sys){
+  const key=document.getElementById('apiKey').value.trim();
+  const resp=await fetch(PROXY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Api-Key':key},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:sys,messages:[{role:'user',content:prompt}]})
+  });
+  if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status);}
+  const data=await resp.json();
+  return data.content.map(b=>b.text||'').join('');
+}
+
+async function startGeneration(){
+  document.getElementById('progressCard').style.display='block';
+  document.getElementById('progressLog').innerHTML='';
+  document.getElementById('resultsCard').style.display='none';
+  document.getElementById('serverWarn').style.display='none';
+
+  try{
+    setProgress(5,'Checking proxy server...');
+    try{ await fetch('http://localhost:5050/api/claude',{method:'OPTIONS'}); }
+    catch(e){ document.getElementById('serverWarn').style.display='block'; throw new Error('Proxy server not running. Open a terminal and run: python3 server.py'); }
+
+    setProgress(10,'Extracting PDF text...');
+    const l1=log('Extracting Question Paper...');
+    const qpText=await extractPDFText(qpFile);
+    l1.innerHTML='✓ <span>QP extracted ('+Math.round(qpText.length/1000)+'k chars)</span>';l1.className='log-line done';
+
+    const l2=log('Extracting Mark Scheme...');
+    const msText=await extractPDFText(msFile);
+    l2.innerHTML='✓ <span>MS extracted ('+Math.round(msText.length/1000)+'k chars)</span>';l2.className='log-line done';
+    setProgress(25,'Pairing questions with answers (AI)...');
+
+    const subject=document.getElementById('subject').value;
+    const session=document.getElementById('sessionLabel').value;
+    const pct=document.getElementById('rewritePct').value;
+    const paper=document.getElementById('paperNum').value;
+    const level=document.getElementById('level').value;
+
+    const sys=`You are an IB examiner. Always respond with valid JSON only — no markdown, no backticks, no extra text.`;
+
+    const l3=log('Pairing questions with answers (AI)...');
+    const pairResult=await callClaude(
+      `Parse this IB ${subject} ${paper} ${level} exam. Pair every question with its mark scheme answer.
+
+QP TEXT:
+${qpText.slice(0,5500)}
+
+MS TEXT:
+${msText.slice(0,5500)}
+
+Return ONLY JSON (no backticks):
+{"subject":"${subject}","paper":"${paper}","level":"${level}","session":"${session}","questions":[{"number":"1","subparts":[{"part":"a","question":"full question text","marks":2,"command_term":"Define","answer":"full mark scheme answer"}]}]}
+
+Use part:"" for questions with no subparts. Extract ALL questions.`, sys);
+
+    l3.innerHTML='✓ <span>Questions paired</span>';l3.className='log-line done';
+    setProgress(55,'Rewriting content...');
+
+    let parsed;
+    try{parsed=JSON.parse(pairResult.replace(/```json|```/g,'').trim());}
+    catch(e){parsed={subject,paper,level,session,questions:[]};}
+
+    const l4=log('Rewriting at '+pct+'% intensity...');
+    const rewriteResult=await callClaude(
+      `Rewrite this IB exam for a new practice paper. Change ~${pct}% of content.
+
+Rules:
+- Swap organisms/chemicals/scenarios/names but KEEP command terms, marks, skills, difficulty
+- Update answers to match rewritten questions exactly
+- Keep [N marks] identical
+
+INPUT:
+${JSON.stringify(parsed.questions||[]).slice(0,5500)}
+
+Return ONLY JSON (no backticks):
+{"questions":[{"number":"1","subparts":[{"part":"a","question":"rewritten","marks":2,"command_term":"Define","answer":"updated answer"}]}]}`, sys);
+
+    l4.innerHTML='✓ <span>Content rewritten</span>';l4.className='log-line done';
+    setProgress(85,'Formatting booklets...');
+
+    let rewritten;
+    try{rewritten=JSON.parse(rewriteResult.replace(/```json|```/g,'').trim());}
+    catch(e){rewritten=parsed;}
+
+    pData={parsed,rewritten,session,subject,paper,level};
+    generatedQP=buildQP(rewritten.questions||parsed.questions||[],session,subject,paper,level);
+    generatedMS=buildMS(rewritten.questions||parsed.questions||[],session,subject,paper,level);
+    setProgress(100,'Done!');
+    log('Booklets ready!','done');
+    setTimeout(showResults,600);
+
+  } catch(err){
+    log('Error: '+err.message,'err');
+    document.getElementById('progressTitle').textContent='Failed';
+  }
+}
+
+function buildQP(qs,session,subject,paper,level){
+  let h=`<div class="ib-hdr"><div class="title">${subject} — ${level} | ${paper}</div><div class="sub">${session} &nbsp;|&nbsp; Practice Paper</div><div class="sub" style="margin-top:3px">Instructions: Write answers in spaces provided. Show all working.</div></div>`;
+  qs.forEach(q=>{
+    const parts=q.subparts||[];
+    h+=`<div class="q">`;
+    h+=`<div class="q-n">Question ${q.number}</div>`;
+    if(parts.length>1||(parts[0]&&parts[0].part)){
+      parts.forEach(p=>{
+        h+=`<div style="margin:6px 0 0 10px"><span class="q-n">${q.number}${p.part||''}.</span> <span class="q-t">${p.question||''}</span><div class="q-m">[${p.marks||0} marks]</div><div style="height:${Math.max(30,(p.marks||1)*16)}px;border-bottom:1px solid #e5e5e0;margin-top:5px"></div></div>`;
+      });
+    } else {
+      const p=parts[0]||{};
+      h+=`<div class="q-t">${p.question||''}</div><div class="q-m">[${p.marks||0} marks]</div><div style="height:${Math.max(36,(p.marks||1)*16)}px;border-bottom:1px solid #e5e5e0;margin-top:5px"></div>`;
+    }
+    h+=`</div>`;
+  });
+  return h;
+}
+
+function buildMS(qs,session,subject,paper,level){
+  let h=`<div class="ib-hdr"><div class="title">${subject} — ${level} | ${paper} | MARK SCHEME</div><div class="sub">${session} &nbsp;|&nbsp; Practice Paper</div></div>`;
+  qs.forEach(q=>{
+    const parts=q.subparts||[];
+    h+=`<div class="q ms-q"><div class="q-n ms-n">Question ${q.number}</div>`;
+    parts.forEach(p=>{
+      h+=`<div style="margin:5px 0 0 8px">`;
+      if(p.part) h+=`<span class="q-n ms-n">${q.number}${p.part}.</span> `;
+      h+=`<span style="font-size:10px;background:#eaf3de;color:#3b6d11;padding:1px 7px;border-radius:10px;font-family:inherit">${p.marks||0} marks</span>`;
+      h+=`<div class="q-t" style="margin:3px 0 2px">${p.question||''}</div>`;
+      h+=`<div class="ans">${p.answer||'—'}</div></div>`;
+    });
+    h+=`</div>`;
+  });
+  return h;
+}
+
+function showResults(){
+  document.getElementById('resultsCard').style.display='block';
+  document.getElementById('previewQP').innerHTML=generatedQP;
+  document.getElementById('previewMS').innerHTML=generatedMS;
+  document.getElementById('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function switchTab(tab,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('previewQP').style.display=tab==='qp'?'block':'none';
+  document.getElementById('previewMS').style.display=tab==='ms'?'block':'none';
+}
+
+function downloadPDF(type){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const isQP=type==='qp';
+  const d=pData||{};
+  doc.setFont('times','bold');doc.setFontSize(13);
+  doc.text(`${d.subject||'IB'} — ${d.level||''} | ${d.paper||''}${isQP?'':' | MARK SCHEME'}`,20,22);
+  doc.setFont('times','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text(d.session||'',20,29);
+  doc.setTextColor(0,0,0);doc.setDrawColor(24,95,165);doc.setLineWidth(0.5);doc.line(20,33,190,33);
+  if(isQP){doc.setFontSize(8);doc.text('Instructions: Write answers in the spaces provided. Show all working.',20,40);}
+  let y=isQP?48:42;
+  const qs=(d.rewritten&&d.rewritten.questions)||(d.parsed&&d.parsed.questions)||[];
+  qs.forEach(q=>{
+    if(y>265){doc.addPage();y=20;}
+    doc.setFont('times','bold');doc.setFontSize(10);doc.setTextColor(24,95,165);
+    doc.text(`Question ${q.number}`,20,y);y+=6;doc.setTextColor(0,0,0);
+    (q.subparts||[]).forEach(p=>{
+      if(y>265){doc.addPage();y=20;}
+      if(p.part){doc.setFont('times','bold');doc.setFontSize(9);doc.setTextColor(isQP?24:15,isQP?95:110,isQP?165:86);doc.text(`  ${q.number}${p.part}.`,20,y);doc.setTextColor(0,0,0);}
+      doc.setFont('times','normal');doc.setFontSize(9);
+      if(p.question){const lines=doc.splitTextToSize((p.part?' ':'')+p.question,162);doc.text(lines,p.part?30:20,y);y+=lines.length*4.5;}
+      doc.setFontSize(8);doc.setTextColor(120,120,120);doc.text(`[${p.marks||0} marks]`,20,y);y+=5;
+      doc.setTextColor(0,0,0);doc.setFont('times','normal');doc.setFontSize(9);
+      if(!isQP&&p.answer){doc.setFont('times','italic');const ans=doc.splitTextToSize(p.answer,162);doc.text(ans,24,y);y+=ans.length*4.5+3;doc.setFont('times','normal');}
+      else if(isQP){y+=Math.max(18,(p.marks||1)*13);}
+    });
+    y+=6;
+  });
+  doc.setFontSize(7);doc.setTextColor(160,160,160);doc.text('Practice paper — generated for study purposes',20,287);
+  doc.save(isQP?'IB_Practice_QP.pdf':'IB_Practice_MS.pdf');
+}
+
+function resetAll(){
+  qpFile=null;msFile=null;generatedQP='';generatedMS='';pData=null;
+  ['qpZone','msZone'].forEach(id=>document.getElementById(id).classList.remove('has-file'));
+  ['qpName','msName'].forEach(id=>document.getElementById(id).textContent='');
+  ['qpInput','msInput'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('progressCard').style.display='none';
+  document.getElementById('resultsCard').style.display='none';
+  document.getElementById('progressLog').innerHTML='';
+  document.getElementById('serverWarn').style.display='none';
+  checkReady();
+}
+</script>
+</body>
+</html>
