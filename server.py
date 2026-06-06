@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, urllib.request, urllib.error, os, mimetypes
+import json, urllib.request, urllib.error, os
 
-PORT = int(os.environ.get("PORT", 5050))
+PORT = int(os.environ.get("PORT", 8080))
+
+SYSTEM_PROMPT = """You are an IB exam question rewriter. Your ONLY job is:
+1. Keep the EXACT same question structure, format, marks, command terms, and layout
+2. Only change: specific names, organisms, chemicals, substances, scenarios, numbers, contexts
+3. Do NOT change: question format, number of parts, marks allocation, command terms (Define/Explain/Evaluate etc)
+4. Update the mark scheme answers to match ONLY the changed words/context
+5. Keep everything else identical - same difficulty, same skills tested, same structure
+Always respond with valid JSON only - no markdown, no backticks."""
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -25,10 +33,20 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/claude":
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
+            
+            try:
+                payload = json.loads(body)
+                payload['system'] = SYSTEM_PROMPT
+                payload['model'] = 'claude-sonnet-4-5'
+                body = json.dumps(payload).encode()
+            except:
+                pass
+
             key = self.headers.get("X-Api-Key", os.environ.get("ANTHROPIC_API_KEY", ""))
             if not key:
                 self._json_response(400, {"error": "No API key provided"})
                 return
+
             req = urllib.request.Request(
                 "https://api.anthropic.com/v1/messages",
                 data=body,
@@ -48,7 +66,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(resp_body)
             except urllib.error.HTTPError as e:
-                self._json_response(e.code, json.loads(e.read()))
+                err_body = e.read()
+                self.send_response(e.code)
+                self._cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(err_body)
         else:
             self.send_response(404)
             self.end_headers()
