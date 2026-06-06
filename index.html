@@ -275,7 +275,8 @@ async function startGeneration(){
 
     const l3=log('Pairing questions with answers (AI)...');
     const pairResult=await callClaude(
-      `Parse this IB ${subject} ${paper} ${level} exam. Pair every question with its mark scheme answer.
+      `Extract ALL questions from this IB ${subject} ${paper} ${level} exam and pair each with its mark scheme answer.
+IMPORTANT: Extract the EXACT question text word for word. Do not paraphrase or change anything.
 
 QP TEXT:
 ${qpText.slice(0,5500)}
@@ -283,10 +284,14 @@ ${qpText.slice(0,5500)}
 MS TEXT:
 ${msText.slice(0,5500)}
 
-Return ONLY JSON (no backticks):
-{"subject":"${subject}","paper":"${paper}","level":"${level}","session":"${session}","questions":[{"number":"1","subparts":[{"part":"a","question":"full question text","marks":2,"command_term":"Define","answer":"full mark scheme answer"}]}]}
+Return ONLY JSON (no backticks, no markdown):
+{"subject":"${subject}","paper":"${paper}","level":"${level}","session":"${session}","questions":[{"number":"1","subparts":[{"part":"a","question":"EXACT question text copied verbatim","marks":2,"command_term":"Define","answer":"EXACT mark scheme answer copied verbatim"}]}]}
 
-Use part:"" for questions with no subparts. Extract ALL questions.`, sys);
+Rules:
+- Copy question text EXACTLY as written
+- Copy mark scheme EXACTLY as written  
+- Use part:"" for questions with no subparts
+- Extract ALL questions, none missing`, sys);
 
     l3.innerHTML='✓ <span>Questions paired</span>';l3.className='log-line done';
     setProgress(55,'Rewriting content...');
@@ -297,18 +302,28 @@ Use part:"" for questions with no subparts. Extract ALL questions.`, sys);
 
     const l4=log('Rewriting at '+pct+'% intensity...');
     const rewriteResult=await callClaude(
-      `Rewrite this IB exam for a new practice paper. Change ~${pct}% of content.
+      `You are rewriting IB exam questions for a practice paper. 
 
-Rules:
-- Swap organisms/chemicals/scenarios/names but KEEP command terms, marks, skills, difficulty
-- Update answers to match rewritten questions exactly
-- Keep [N marks] identical
+STRICT RULES:
+1. Keep the EXACT same sentence structure and format
+2. Only swap: species names, chemical names, substance names, place names, person names, specific numbers/values, experimental contexts
+3. Do NOT change: command terms, question structure, number of marks, sub-parts, scientific concepts being tested
+4. Update ONLY the relevant parts of the mark scheme to match your swapped words
+5. Keep difficulty level identical
 
-INPUT:
+Example of CORRECT rewrite:
+Original: "Explain how insulin regulates blood glucose levels. [3 marks]"
+Rewritten: "Explain how glucagon regulates blood glucose levels. [3 marks]"
+
+Example of WRONG rewrite (do not do this):
+Original: "Explain how insulin regulates blood glucose levels. [3 marks]"  
+Wrong: "Describe the mechanism by which hormones control metabolic processes. [3 marks]"
+
+INPUT QUESTIONS:
 ${JSON.stringify(parsed.questions||[]).slice(0,5500)}
 
-Return ONLY JSON (no backticks):
-{"questions":[{"number":"1","subparts":[{"part":"a","question":"rewritten","marks":2,"command_term":"Define","answer":"updated answer"}]}]}`, sys);
+Return ONLY JSON (no backticks, no markdown):
+{"questions":[{"number":"1","subparts":[{"part":"a","question":"rewritten question keeping exact structure","marks":2,"command_term":"Define","answer":"updated mark scheme matching only the changed words"}]}]}`, sys);
 
     l4.innerHTML='✓ <span>Content rewritten</span>';l4.className='log-line done';
     setProgress(85,'Formatting booklets...');
