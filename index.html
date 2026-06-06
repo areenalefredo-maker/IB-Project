@@ -191,7 +191,7 @@ select,input[type=text]{width:100%;padding:8px 10px;border:1px solid #ddd;border
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let qpFile=null,msFile=null,generatedQP='',generatedMS='',pData=null;
-const PROXY='http://localhost:5050/api/claude';
+const PROXY = window.location.origin + '/api/claude';
 
 document.getElementById('qpInput').addEventListener('change',e=>{qpFile=e.target.files[0];if(qpFile){document.getElementById('qpZone').classList.add('has-file');document.getElementById('qpName').textContent=qpFile.name;}checkReady();});
 document.getElementById('msInput').addEventListener('change',e=>{msFile=e.target.files[0];if(msFile){document.getElementById('msZone').classList.add('has-file');document.getElementById('msName').textContent=msFile.name;}checkReady();});
