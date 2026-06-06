@@ -237,7 +237,7 @@ async function callClaude(prompt,sys){
   const resp=await fetch(PROXY,{
     method:'POST',
     headers:{'Content-Type':'application/json','X-Api-Key':key},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:sys,messages:[{role:'user',content:prompt}]})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,system:sys,messages:[{role:'user',content:prompt}]})
   });
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status);}
   const data=await resp.json();
