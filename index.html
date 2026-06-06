@@ -251,9 +251,9 @@ async function startGeneration(){
   document.getElementById('serverWarn').style.display='none';
 
   try{
-    setProgress(5,'Checking proxy server...');
-    try{ await fetch('http://localhost:5050/api/claude',{method:'OPTIONS'}); }
-    catch(e){ document.getElementById('serverWarn').style.display='block'; throw new Error('Proxy server not running. Open a terminal and run: python3 server.py'); }
+    
+    
+    
 
     setProgress(10,'Extracting PDF text...');
     const l1=log('Extracting Question Paper...');
