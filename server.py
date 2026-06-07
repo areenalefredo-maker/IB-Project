@@ -1,56 +1,12 @@
 #!/usr/bin/env python3
+import json, urllib.request, urllib.error, os, io, zipfile
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json, urllib.request, urllib.error, os
 
 PORT = int(os.environ.get("PORT", 8080))
 
-SYSTEM_PROMPT = """You are an IB exam question rewriter. Your ONLY job is:
-1. Keep the EXACT same question structure, format, marks, command terms, and layout
-2. Only change: specific names, organisms, chemicals, substances, scenarios, numbers, contexts
-3. Do NOT change: question format, number of parts, marks allocation, command terms (Define/Explain/Evaluate etc)
-4. Update the mark scheme answers to match ONLY the changed words/context
-5. Keep everything else identical - same difficulty, same skills tested, same structure
-Always respond with valid JSON only - no markdown, no backticks."""
-
-MARKSCHEME_PROMPT = """You are an expert IB examiner writing an official Mark Scheme.
-
-Given modified IB exam questions (JSON), produce a detailed Mark Scheme following IB official format EXACTLY.
-
-STRICT FORMAT RULES:
-- Use tick mark after each marking point
-- Use <<...>> for non-essential but acceptable additions
-- Use OR for alternative acceptable answers
-- Include Accept / Do NOT accept notes where relevant
-- Include Follow Through [FT] notes where applicable
-- For calculations: show formula, then substitution, then answer
-- For equations: state if ionic equations are accepted
-- Marks must match exactly what is in the question
-
-Always respond with valid JSON only - no markdown, no backticks.
-
-Response format (strict JSON):
-{
-  "questions": [
-    {
-      "number": "1",
-      "subparts": [
-        {
-          "part": "a",
-          "marks": 1,
-          "question": "original question text",
-          "answer_points": [
-            "marking point one [1]",
-            "OR alternative answer [1]"
-          ],
-          "notes": [
-            "Accept: ...",
-            "Do NOT accept: ..."
-          ]
-        }
-      ]
-    }
-  ]
-}"""
+# PDF files stored next to server.py
+QP_FILE = os.path.join(os.path.dirname(__file__), "IB_Practice_QP.pdf")
+MS_FILE = os.path.join(os.path.dirname(__file__), "IB_Practice_MS.pdf")
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -63,66 +19,78 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?')[0]
-        if path == '/' or path == '/index.html':
+
+        if path in ('/', '/index.html'):
             self._serve_file('index.html', 'text/html')
+
+        elif path == '/download/qp':
+            self._serve_pdf(QP_FILE, 'IB_Practice_QP.pdf')
+
+        elif path == '/download/ms':
+            self._serve_pdf(MS_FILE, 'IB_Practice_MS.pdf')
+
+        elif path == '/download/all':
+            self._serve_zip()
+
+        elif path == '/status':
+            qp_ok = os.path.exists(QP_FILE)
+            ms_ok = os.path.exists(MS_FILE)
+            body = json.dumps({
+                "qp": qp_ok,
+                "ms": ms_ok,
+                "qp_size": os.path.getsize(QP_FILE) if qp_ok else 0,
+                "ms_size": os.path.getsize(MS_FILE) if ms_ok else 0,
+            }).encode()
+            self.send_response(200)
+            self._cors()
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(body)
+
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_POST(self):
         if self.path == "/api/claude":
-            self._handle_claude(SYSTEM_PROMPT)
-        elif self.path == "/api/markscheme":
-            self._handle_claude(MARKSCHEME_PROMPT)
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            key = self.headers.get("X-Api-Key", os.environ.get("ANTHROPIC_API_KEY", ""))
+            if not key:
+                self._json(400, {"error": "No API key"})
+                return
+            req = urllib.request.Request(
+                "https://api.anthropic.com/v1/messages",
+                data=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01"
+                },
+                method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    resp = r.read()
+                self.send_response(200)
+                self._cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(resp)
+            except urllib.error.HTTPError as e:
+                self.send_response(e.code)
+                self._cors()
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(e.read())
         else:
             self.send_response(404)
             self.end_headers()
 
-    def _handle_claude(self, system_prompt):
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length)
-        try:
-            payload = json.loads(body)
-            payload['system'] = system_prompt
-            payload['model'] = 'claude-sonnet-4-5'
-            payload['max_tokens'] = payload.get('max_tokens', 4096)
-            body = json.dumps(payload).encode()
-        except Exception as e:
-            self._json_response(400, {"error": f"Invalid JSON: {str(e)}"})
-            return
-        key = self.headers.get("X-Api-Key", os.environ.get("ANTHROPIC_API_KEY", ""))
-        if not key:
-            self._json_response(400, {"error": "No API key provided"})
-            return
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
-            data=body,
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": key,
-                "anthropic-version": "2023-06-01"
-            },
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
-                resp_body = r.read()
-            self.send_response(200)
-            self._cors()
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(resp_body)
-        except urllib.error.HTTPError as e:
-            err_body = e.read()
-            self.send_response(e.code)
-            self._cors()
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(err_body)
-
     def _serve_file(self, filename, content_type):
         try:
-            with open(filename, 'rb') as f:
+            filepath = os.path.join(os.path.dirname(__file__), filename)
+            with open(filepath, 'rb') as f:
                 content = f.read()
             self.send_response(200)
             self._cors()
@@ -134,7 +102,37 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def _json_response(self, code, data):
+    def _serve_pdf(self, filepath, filename):
+        if not os.path.exists(filepath):
+            self._json(404, {"error": f"{filename} not found on server"})
+            return
+        with open(filepath, 'rb') as f:
+            content = f.read()
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", "application/pdf")
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", len(content))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _serve_zip(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for fpath, fname in [(QP_FILE, 'IB_Practice_QP.pdf'), (MS_FILE, 'IB_Practice_MS.pdf')]:
+                if os.path.exists(fpath):
+                    zf.write(fpath, fname)
+        buf.seek(0)
+        content = buf.read()
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", 'attachment; filename="IB_Practice_Papers.zip"')
+        self.send_header("Content-Length", len(content))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _json(self, code, data):
         body = json.dumps(data).encode()
         self.send_response(code)
         self._cors()
