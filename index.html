@@ -46,6 +46,9 @@ select,input[type=text]{width:100%;padding:8px 10px;border:1px solid #ddd;border
 .btn-success:hover{background:#27500a}
 .btn-outline{background:transparent;border:1px solid #ddd;color:#444}
 .btn-outline:hover{background:#f4f4f0}
+.btn-ms{background:#1a6e5a;color:white}
+.btn-ms:hover{background:#0f4f40}
+.btn-ms:disabled{opacity:0.4;cursor:not-allowed}
 .action-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:1rem}
 .ready-msg{font-size:12px;color:#888}
 .progress-card{display:none}
@@ -82,6 +85,23 @@ select,input[type=text]{width:100%;padding:8px 10px;border:1px solid #ddd;border
 .ans{margin-top:5px;padding:7px 10px;background:white;border-left:2px solid #5dcaa5;border-radius:0 4px 4px 0;font-size:11px;font-style:italic;white-space:pre-wrap}
 .space{height:1px;background:#e0dfd7;margin:6px 0}
 .server-warn{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:1rem;display:none}
+
+/* ── IB Mark Scheme Table styles ── */
+.ms-card{display:none;margin-top:1rem}
+.ms-generating{text-align:center;padding:2rem;color:#888;font-size:13px}
+.ms-table-wrap{overflow-x:auto}
+.ms-tbl{width:100%;border-collapse:collapse;font-size:12px;font-family:'Times New Roman',serif}
+.ms-tbl th{background:#111;color:#fff;padding:8px 12px;text-align:left;font-weight:600;font-family:'Inter',sans-serif;font-size:11px}
+.ms-tbl td{padding:9px 12px;border:1px solid #ddd;vertical-align:top}
+.ms-tbl tr:nth-child(even) td{background:#f7f7f5}
+.ms-tbl .td-part{font-weight:700;color:#111;white-space:nowrap;font-family:'Inter',sans-serif;font-size:11px}
+.ms-tbl .td-marks{text-align:center;font-weight:700;color:#111;font-family:'Inter',sans-serif}
+.ms-tbl .td-note{font-style:italic;color:#555;font-size:11px}
+.ms-tbl .ms-qrow td{background:#222;color:#fff;font-weight:700;font-family:'Inter',sans-serif;font-size:11px;padding:6px 12px}
+.ms-point{margin-bottom:3px}
+.ms-or{color:#666;font-style:italic;margin:2px 0}
+.ms-note-item{font-size:10px;font-style:italic;color:#666;margin-top:2px}
+.ms-note-item.danger{color:#900;font-weight:600}
 </style>
 </head>
 <body>
@@ -183,15 +203,32 @@ select,input[type=text]{width:100%;padding:8px 10px;border:1px solid #ddd;border
     <div class="dl-row">
       <button class="btn btn-success" onclick="downloadPDF('qp')">⬇️ Download QP PDF</button>
       <button class="btn btn-success" onclick="downloadPDF('ms')">⬇️ Download MS PDF</button>
+      <button class="btn btn-ms" id="ibMsBtn" onclick="generateIBMarkScheme()" style="display:none">📋 Generate IB Mark Scheme</button>
       <button class="btn btn-outline" onclick="resetAll()">🔄 Start over</button>
     </div>
   </div>
+
+  <!-- IB Mark Scheme Card -->
+  <div class="card ms-card" id="ibMsCard">
+    <h2>📋 IB-Style Mark Scheme</h2>
+    <div id="ibMsProgress" class="ms-generating" style="display:none">
+      <div class="spinner" style="display:inline-block;margin-right:8px"></div>
+      Generating IB-style Mark Scheme...
+    </div>
+    <div id="ibMsContent"></div>
+    <div class="dl-row" id="ibMsDlRow" style="display:none">
+      <button class="btn btn-success" onclick="downloadIBMsPDF()">⬇️ Download IB MS PDF</button>
+      <button class="btn btn-outline" onclick="downloadIBMsTxt()">⬇️ Download as Text</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-let qpFile=null,msFile=null,generatedQP='',generatedMS='',pData=null;
+let qpFile=null,msFile=null,generatedQP='',generatedMS='',pData=null,ibMsData=null;
 const PROXY = window.location.origin + '/api/claude';
+const MS_PROXY = window.location.origin + '/api/markscheme';
 
 document.getElementById('qpInput').addEventListener('change',e=>{qpFile=e.target.files[0];if(qpFile){document.getElementById('qpZone').classList.add('has-file');document.getElementById('qpName').textContent=qpFile.name;}checkReady();});
 document.getElementById('msInput').addEventListener('change',e=>{msFile=e.target.files[0];if(msFile){document.getElementById('msZone').classList.add('has-file');document.getElementById('msName').textContent=msFile.name;}checkReady();});
@@ -232,12 +269,13 @@ function setProgress(pct,title){
   if(title)document.getElementById('progressTitle').textContent=title;
 }
 
-async function callClaude(prompt,sys){
+async function callClaude(prompt,sys,endpoint){
   const key=document.getElementById('apiKey').value.trim();
-  const resp=await fetch(PROXY,{
+  const url=endpoint||PROXY;
+  const resp=await fetch(url,{
     method:'POST',
     headers:{'Content-Type':'application/json','X-Api-Key':key},
-    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,system:sys,messages:[{role:'user',content:prompt}]})
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4096,system:sys,messages:[{role:'user',content:prompt}]})
   });
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status);}
   const data=await resp.json();
@@ -248,13 +286,11 @@ async function startGeneration(){
   document.getElementById('progressCard').style.display='block';
   document.getElementById('progressLog').innerHTML='';
   document.getElementById('resultsCard').style.display='none';
+  document.getElementById('ibMsCard').style.display='none';
+  document.getElementById('ibMsBtn').style.display='none';
   document.getElementById('serverWarn').style.display='none';
 
   try{
-    
-    
-    
-
     setProgress(10,'Extracting PDF text...');
     const l1=log('Extracting Question Paper...');
     const qpText=await extractPDFText(qpFile);
@@ -385,6 +421,7 @@ function showResults(){
   document.getElementById('resultsCard').style.display='block';
   document.getElementById('previewQP').innerHTML=generatedQP;
   document.getElementById('previewMS').innerHTML=generatedMS;
+  document.getElementById('ibMsBtn').style.display='';
   document.getElementById('resultsCard').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -393,6 +430,148 @@ function switchTab(tab,btn){
   btn.classList.add('active');
   document.getElementById('previewQP').style.display=tab==='qp'?'block':'none';
   document.getElementById('previewMS').style.display=tab==='ms'?'block':'none';
+}
+
+// ── IB Mark Scheme Generator ──────────────────────────────────────
+async function generateIBMarkScheme(){
+  if(!pData) return;
+  const card=document.getElementById('ibMsCard');
+  const prog=document.getElementById('ibMsProgress');
+  const content=document.getElementById('ibMsContent');
+  const dlRow=document.getElementById('ibMsDlRow');
+  const btn=document.getElementById('ibMsBtn');
+
+  card.style.display='block';
+  prog.style.display='block';
+  content.innerHTML='';
+  dlRow.style.display='none';
+  btn.disabled=true;
+  card.scrollIntoView({behavior:'smooth',block:'start'});
+
+  try{
+    const qs=pData.rewritten&&pData.rewritten.questions?pData.rewritten.questions:pData.parsed&&pData.parsed.questions?pData.parsed.questions:[];
+    const prompt=`Generate a complete IB-style Mark Scheme for the following ${pData.subject} ${pData.paper} ${pData.level} exam questions.
+
+Follow IB official Mark Scheme format:
+- Use [1] for each marking point
+- Use OR for alternatives
+- Include Accept / Do NOT accept notes
+- Include FT (Follow Through) where applicable
+- For calculations: show formula, substitution, answer
+- Marks must match exactly
+
+Questions (JSON):
+${JSON.stringify(qs).slice(0,6000)}`;
+
+    const result=await callClaude(prompt,null,MS_PROXY);
+    ibMsData=result;
+    prog.style.display='none';
+
+    let parsed=null;
+    try{parsed=JSON.parse(result.replace(/```json|```/g,'').trim());}catch(e){}
+
+    if(parsed&&parsed.questions){
+      renderIBMsTable(parsed.questions,content,pData);
+    } else {
+      content.innerHTML=`<div class="preview" style="white-space:pre-wrap;font-family:monospace;font-size:11px">${escHtml(result)}</div>`;
+    }
+    dlRow.style.display='';
+  } catch(err){
+    prog.style.display='none';
+    content.innerHTML=`<div class="alert" style="background:#ffeaea;color:#900;border:1px solid #f5c6c6">Error: ${err.message}</div>`;
+  }
+  btn.disabled=false;
+}
+
+function renderIBMsTable(questions, container, meta){
+  let h=`<div style="margin-bottom:12px">
+    <div style="font-size:13px;font-weight:600;font-family:'Times New Roman',serif">${meta.subject||''} — ${meta.level||''} | ${meta.paper||''} | MARK SCHEME</div>
+    <div style="font-size:11px;color:#888;margin-top:2px">${meta.session||''} &nbsp;|&nbsp; Practice Paper</div>
+  </div>
+  <div class="ms-table-wrap">
+  <table class="ms-tbl">
+    <thead><tr>
+      <th style="width:70px">Part</th>
+      <th>Answer / Marking Points</th>
+      <th style="width:220px">Notes</th>
+      <th style="width:44px;text-align:center">M</th>
+    </tr></thead>
+    <tbody>`;
+
+  questions.forEach(q=>{
+    h+=`<tr class="ms-qrow"><td colspan="4">Question ${q.number}</td></tr>`;
+    (q.subparts||[]).forEach(p=>{
+      const points=(p.answer_points||[]).map(pt=>{
+        const isOr=pt.trim().toUpperCase()==='OR';
+        return isOr?`<div class="ms-or">OR</div>`:`<div class="ms-point">${escHtml(pt)}</div>`;
+      }).join('');
+      const notes=(p.notes||[]).map(n=>{
+        const danger=n.toLowerCase().includes('do not')||n.toLowerCase().includes('do not accept');
+        return `<div class="ms-note-item${danger?' danger':''}">${escHtml(n)}</div>`;
+      }).join('');
+      h+=`<tr>
+        <td class="td-part">${q.number}${p.part||''}</td>
+        <td>${points}</td>
+        <td class="td-note">${notes}</td>
+        <td class="td-marks">${p.marks||''}</td>
+      </tr>`;
+    });
+  });
+
+  h+=`</tbody></table></div>`;
+  container.innerHTML=h;
+}
+
+function escHtml(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function downloadIBMsTxt(){
+  if(!ibMsData) return;
+  const blob=new Blob([ibMsData],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='IB_MarkScheme_Official.txt';
+  a.click();
+}
+
+function downloadIBMsPDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const d=pData||{};
+  doc.setFont('times','bold');doc.setFontSize(13);
+  doc.text(`${d.subject||'IB'} — ${d.level||''} | ${d.paper||''} | MARK SCHEME`,20,22);
+  doc.setFont('times','normal');doc.setFontSize(9);doc.setTextColor(100,100,100);
+  doc.text(d.session||'',20,29);
+  doc.setTextColor(0,0,0);doc.setDrawColor(15,110,86);doc.setLineWidth(0.5);doc.line(20,33,190,33);
+  let y=42;
+  const container=document.getElementById('ibMsContent');
+  const rows=container.querySelectorAll('tr');
+  rows.forEach(row=>{
+    if(y>272){doc.addPage();y=20;}
+    if(row.classList.contains('ms-qrow')){
+      doc.setFillColor(34,34,34);doc.rect(20,y-4,170,7,'F');
+      doc.setFont('times','bold');doc.setFontSize(9);doc.setTextColor(255,255,255);
+      doc.text(row.textContent.trim(),22,y);
+      doc.setTextColor(0,0,0);y+=9;
+    } else {
+      const cells=row.querySelectorAll('td');
+      if(cells.length>=3){
+        doc.setFont('times','bold');doc.setFontSize(9);doc.setTextColor(0,0,0);
+        doc.text(cells[0].textContent.trim()||'',20,y);
+        doc.setFont('times','normal');
+        const pts=doc.splitTextToSize(cells[1].textContent.replace(/\n/g,' ').trim(),110);
+        doc.text(pts,35,y);
+        doc.setFont('times','italic');doc.setFontSize(8);doc.setTextColor(80,80,80);
+        const nts=doc.splitTextToSize(cells[2].textContent.trim(),48);
+        doc.text(nts,138,y);
+        doc.setFont('times','bold');doc.setFontSize(9);doc.setTextColor(0,0,0);
+        if(cells[3]) doc.text(cells[3].textContent.trim(),186,y,{align:'right'});
+        y+=Math.max(pts.length,nts.length)*4.5+4;
+        doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(20,y-2,190,y-2);
+      }
+    }
+  });
+  doc.setFontSize(7);doc.setTextColor(160,160,160);doc.text('Practice paper — generated for study purposes',20,287);
+  doc.save('IB_Practice_IB_MS.pdf');
 }
 
 function downloadPDF(type){
@@ -429,14 +608,16 @@ function downloadPDF(type){
 }
 
 function resetAll(){
-  qpFile=null;msFile=null;generatedQP='';generatedMS='';pData=null;
+  qpFile=null;msFile=null;generatedQP='';generatedMS='';pData=null;ibMsData=null;
   ['qpZone','msZone'].forEach(id=>document.getElementById(id).classList.remove('has-file'));
   ['qpName','msName'].forEach(id=>document.getElementById(id).textContent='');
   ['qpInput','msInput'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('progressCard').style.display='none';
   document.getElementById('resultsCard').style.display='none';
+  document.getElementById('ibMsCard').style.display='none';
   document.getElementById('progressLog').innerHTML='';
   document.getElementById('serverWarn').style.display='none';
+  document.getElementById('ibMsBtn').style.display='none';
   checkReady();
 }
 </script>
