@@ -12,6 +12,46 @@ SYSTEM_PROMPT = """You are an IB exam question rewriter. Your ONLY job is:
 5. Keep everything else identical - same difficulty, same skills tested, same structure
 Always respond with valid JSON only - no markdown, no backticks."""
 
+MARKSCHEME_PROMPT = """You are an expert IB examiner writing an official Mark Scheme.
+
+Given modified IB exam questions (JSON), produce a detailed Mark Scheme following IB official format EXACTLY.
+
+STRICT FORMAT RULES:
+- Use tick mark after each marking point
+- Use <<...>> for non-essential but acceptable additions
+- Use OR for alternative acceptable answers
+- Include Accept / Do NOT accept notes where relevant
+- Include Follow Through [FT] notes where applicable
+- For calculations: show formula, then substitution, then answer
+- For equations: state if ionic equations are accepted
+- Marks must match exactly what is in the question
+
+Always respond with valid JSON only - no markdown, no backticks.
+
+Response format (strict JSON):
+{
+  "questions": [
+    {
+      "number": "1",
+      "subparts": [
+        {
+          "part": "a",
+          "marks": 1,
+          "question": "original question text",
+          "answer_points": [
+            "marking point one [1]",
+            "OR alternative answer [1]"
+          ],
+          "notes": [
+            "Accept: ...",
+            "Do NOT accept: ..."
+          ]
+        }
+      ]
+    }
+  ]
+}"""
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         print(f"  {args[0]} {args[1]}")
@@ -31,50 +71,54 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == "/api/claude":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            
-            try:
-                payload = json.loads(body)
-                payload['system'] = SYSTEM_PROMPT
-                payload['model'] = 'claude-sonnet-4-5'
-                body = json.dumps(payload).encode()
-            except:
-                pass
-
-            key = self.headers.get("X-Api-Key", os.environ.get("ANTHROPIC_API_KEY", ""))
-            if not key:
-                self._json_response(400, {"error": "No API key provided"})
-                return
-
-            req = urllib.request.Request(
-                "https://api.anthropic.com/v1/messages",
-                data=body,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": key,
-                    "anthropic-version": "2023-06-01"
-                },
-                method="POST"
-            )
-            try:
-                with urllib.request.urlopen(req, timeout=120) as r:
-                    resp_body = r.read()
-                self.send_response(200)
-                self._cors()
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(resp_body)
-            except urllib.error.HTTPError as e:
-                err_body = e.read()
-                self.send_response(e.code)
-                self._cors()
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(err_body)
+            self._handle_claude(SYSTEM_PROMPT)
+        elif self.path == "/api/markscheme":
+            self._handle_claude(MARKSCHEME_PROMPT)
         else:
             self.send_response(404)
             self.end_headers()
+
+    def _handle_claude(self, system_prompt):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body)
+            payload['system'] = system_prompt
+            payload['model'] = 'claude-sonnet-4-5'
+            payload['max_tokens'] = payload.get('max_tokens', 4096)
+            body = json.dumps(payload).encode()
+        except Exception as e:
+            self._json_response(400, {"error": f"Invalid JSON: {str(e)}"})
+            return
+        key = self.headers.get("X-Api-Key", os.environ.get("ANTHROPIC_API_KEY", ""))
+        if not key:
+            self._json_response(400, {"error": "No API key provided"})
+            return
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01"
+            },
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                resp_body = r.read()
+            self.send_response(200)
+            self._cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(resp_body)
+        except urllib.error.HTTPError as e:
+            err_body = e.read()
+            self.send_response(e.code)
+            self._cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(err_body)
 
     def _serve_file(self, filename, content_type):
         try:
