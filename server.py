@@ -3,10 +3,10 @@ import json, urllib.request, urllib.error, os, io, zipfile
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 PORT = int(os.environ.get("PORT", 8080))
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.abspath(__file__))
 
-# Auto-detect PDF filenames (handles "(2)", "(5)" suffixes from GitHub uploads)
 def find_pdf(prefix):
+    """Find any PDF starting with prefix — handles _final, (2), (5), etc."""
     for fname in os.listdir(BASE):
         if fname.startswith(prefix) and fname.endswith('.pdf'):
             return os.path.join(BASE, fname)
@@ -15,8 +15,8 @@ def find_pdf(prefix):
 QP_FILE = find_pdf("IB_Practice_QP") or os.path.join(BASE, "IB_Practice_QP.pdf")
 MS_FILE = find_pdf("IB_Practice_MS") or os.path.join(BASE, "IB_Practice_MS.pdf")
 
-print(f"QP: {QP_FILE} exists={os.path.exists(QP_FILE)}")
-print(f"MS: {MS_FILE} exists={os.path.exists(MS_FILE)}")
+print(f"QP: {QP_FILE}  exists={os.path.exists(QP_FILE)}")
+print(f"MS: {MS_FILE}  exists={os.path.exists(MS_FILE)}")
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -33,9 +33,9 @@ class Handler(BaseHTTPRequestHandler):
         if path in ('/', '/index.html'):
             self._serve_file('index.html', 'text/html')
         elif path == '/download/qp':
-            self._serve_pdf(QP_FILE, 'IB_Practice_QP.pdf')
+            self._serve_pdf(QP_FILE, 'IB_Practice_QP_final.pdf')
         elif path == '/download/ms':
-            self._serve_pdf(MS_FILE, 'IB_Practice_MS.pdf')
+            self._serve_pdf(MS_FILE, 'IB_Practice_MS_final.pdf')
         elif path == '/download/all':
             self._serve_zip()
         elif path == '/status':
@@ -43,6 +43,8 @@ class Handler(BaseHTTPRequestHandler):
             ms_ok = os.path.exists(MS_FILE)
             body = json.dumps({
                 "qp": qp_ok, "ms": ms_ok,
+                "qp_file": os.path.basename(QP_FILE),
+                "ms_file": os.path.basename(MS_FILE),
                 "qp_size": os.path.getsize(QP_FILE) if qp_ok else 0,
                 "ms_size": os.path.getsize(MS_FILE) if ms_ok else 0,
             }).encode()
@@ -81,7 +83,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_file(self, filename, content_type):
         try:
-            with open(os.path.join(BASE, filename), 'rb') as f: content = f.read()
+            with open(os.path.join(BASE, filename), 'rb') as f:
+                content = f.read()
             self.send_response(200); self._cors()
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", len(content))
@@ -90,9 +93,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404); self.end_headers()
 
     def _serve_pdf(self, filepath, download_name):
-        if not os.path.exists(filepath):
-            self._json(404, {"error": f"{download_name} not found"}); return
-        with open(filepath, 'rb') as f: content = f.read()
+        if not filepath or not os.path.exists(filepath):
+            self._json(404, {"error": f"{download_name} not found on server"}); return
+        with open(filepath, 'rb') as f:
+            content = f.read()
         self.send_response(200); self._cors()
         self.send_header("Content-Type", "application/pdf")
         self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
@@ -102,8 +106,12 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_zip(self):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for fpath, fname in [(QP_FILE,'IB_Practice_QP.pdf'),(MS_FILE,'IB_Practice_MS.pdf')]:
-                if os.path.exists(fpath): zf.write(fpath, fname)
+            for fpath, fname in [
+                (QP_FILE, 'IB_Practice_QP_final.pdf'),
+                (MS_FILE, 'IB_Practice_MS_final.pdf')
+            ]:
+                if fpath and os.path.exists(fpath):
+                    zf.write(fpath, fname)
         buf.seek(0); content = buf.read()
         self.send_response(200); self._cors()
         self.send_header("Content-Type", "application/zip")
