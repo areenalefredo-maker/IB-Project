@@ -93,6 +93,41 @@ DEFAULT_MS_REPS = [
     (15, "298 K",                       "293 K"),
 ]
 
+# ── PDF modifier helpers ──────────────────────────────────────────────────
+def _text_w(text, fontname, size):
+    try:
+        return fitz.Font(fontname).text_length(text, fontsize=size)
+    except:
+        return len(text) * size * 0.55
+
+def _fit(text, avail, fontname, size, min_s=7.5):
+    s = size
+    while s >= min_s:
+        if _text_w(text, fontname, s) <= avail:
+            return text, s
+        s -= 0.4
+    while len(text) > 3 and _text_w(text+"...", fontname, min_s) > avail:
+        text = text[:-1]
+    return text+"...", min_s
+
+def _span_at(page, rect):
+    for b in page.get_text("dict")["blocks"]:
+        if b["type"] != 0: continue
+        for line in b["lines"]:
+            for span in line["spans"]:
+                if fitz.Rect(span["bbox"]).intersects(rect):
+                    return span
+    return None
+
+def _color(c):
+    return (((c>>16)&0xFF)/255.0, ((c>>8)&0xFF)/255.0, (c&0xFF)/255.0)
+
+def _font(face):
+    if "Bold" in face and "Italic" in face: return "hebo"
+    if "Bold" in face: return "hebo"
+    if "Italic" in face: return "hebi"
+    return "helv"
+
 # ── PDF modifier ──────────────────────────────────────────────────────────
 def modify_pdf(input_bytes, replacements):
     if not PYMUPDF_OK:
@@ -102,30 +137,48 @@ def modify_pdf(input_bytes, replacements):
         tmp.write(input_bytes); tmp_path = tmp.name
 
     doc = fitz.open(tmp_path)
+    PAGE_M = 8  # margin from page edge pts
 
     for page_num, old, new in replacements:
         if page_num < 1 or page_num > len(doc): continue
         page = doc[page_num - 1]
-        for rect in page.search_for(old):
-            # Get font info
-            size, color, fontname = 11.0, (0,0,0), "helv"
-            for b in page.get_text("dict")["blocks"]:
-                if b["type"] != 0: continue
-                for line in b["lines"]:
-                    for span in line["spans"]:
-                        if fitz.Rect(span["bbox"]).intersects(rect):
-                            size = span["size"]
-                            c = span["color"]
-                            color = (((c>>16)&0xFF)/255.0,((c>>8)&0xFF)/255.0,(c&0xFF)/255.0)
-                            f = span["font"]
-                            fontname = "hebo" if "Bold" in f else "hebi" if "Italic" in f else "helv"
-                            break
-            # White out + rewrite
-            page.draw_rect(fitz.Rect(rect.x0-1,rect.y0-1,rect.x1+2,rect.y1+2),
-                          color=(1,1,1), fill=(1,1,1), overlay=True)
-            page.insert_text(fitz.Point(rect.x0, rect.y1-2), new,
-                           fontname=fontname, fontsize=size, color=color, overlay=True)
-        print(f"  p{page_num}: '{old[:30]}' → '{new[:30]}'")
+        pr   = page.rect
+        hits = page.search_for(old)
+
+        for rect in hits:
+            span = _span_at(page, rect)
+            if span:
+                orig_size = span["size"]
+                color     = _color(span["color"])
+                fontname  = _font(span["font"])
+            else:
+                orig_size, color, fontname = 11.0, (0,0,0), "helv"
+
+            # Available width = original span width + small buffer
+            avail = rect.width + 4
+            fitted, size = _fit(new, avail, fontname, orig_size)
+
+            # White-out box (covers original text fully)
+            w_rect = fitz.Rect(
+                rect.x0 - 1, rect.y0 - 1,
+                min(rect.x0 + _text_w(fitted, fontname, size) + 4, pr.x1 - PAGE_M),
+                rect.y1 + 2
+            )
+            page.draw_rect(w_rect, color=(1,1,1), fill=(1,1,1), overlay=True)
+
+            # Baseline point
+            pt = fitz.Point(rect.x0, rect.y1 - 2)
+
+            # Clamp x so text stays on page
+            if pt.x + _text_w(fitted, fontname, size) > pr.x1 - PAGE_M:
+                fitted, size = _fit(fitted, pr.x1 - PAGE_M - pt.x - 2, fontname, size)
+
+            page.insert_text(pt, fitted,
+                fontname=fontname, fontsize=size,
+                color=color, overlay=True)
+
+        if hits:
+            print(f"  p{page_num}: '{old[:25]}' -> '{new[:25]}' ({len(hits)}x, sz={orig_size:.1f})")
 
     buf = io.BytesIO()
     doc.save(buf, garbage=4, deflate=True)
