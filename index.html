@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IB Exam Modifier</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f7fa;color:#1a2940;min-height:100vh;padding:24px 16px}
+.page{max-width:760px;margin:0 auto}
+.hero{text-align:center;padding:2rem 0 1.5rem}
+h1{font-size:26px;font-weight:700;margin-bottom:6px}
+.sub{font-size:14px;color:#666}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card-title{font-size:11px;font-weight:700;color:#888;letter-spacing:.8px;text-transform:uppercase;margin-bottom:14px}
+.api-row{display:flex;gap:8px}
+.api-row input{flex:1;padding:9px 12px;border:1px solid #dde3ed;border-radius:8px;font-size:13px;font-family:monospace;background:#f8fafc}
+.api-row input:focus{outline:2px solid #378ADD;border-color:#378ADD}
+.show-btn{padding:0 14px;border:1px solid #dde3ed;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#555;white-space:nowrap}
+.show-btn:hover{background:#eef2f7}
+.note{font-size:12px;color:#888;margin-top:8px}
+.upload-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.dz{border:2px dashed #cbd5e1;border-radius:12px;padding:20px 12px;text-align:center;cursor:pointer;transition:all .2s;background:#f8fafc}
+.dz:hover{border-color:#378ADD;background:#eff6ff}
+.dz.ok{border-style:solid;border-color:#22c55e;background:#f0fdf4}
+.dz-ico{font-size:28px;margin-bottom:4px}
+.dz-lbl{font-size:13px;font-weight:600;color:#334155}
+.dz-hint{font-size:11px;color:#94a3b8;margin-top:2px}
+input[type=file]{display:none}
+.btn-run{width:100%;padding:12px;border-radius:10px;border:none;background:#378ADD;color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.btn-run:hover{opacity:.88}
+.btn-run:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.pbar-wrap{margin-top:12px;display:none}
+.pbar-wrap.show{display:block}
+.pbar{height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;margin-bottom:6px}
+.pfill{height:100%;background:#378ADD;width:0;transition:width .4s}
+.pmsg{font-size:12px;color:#64748b;text-align:center}
+.err{display:none;margin-top:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626}
+.err.show{display:block}
+.res-card{display:none}
+.res-card.show{display:block}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat{background:#f8fafc;border-radius:10px;padding:12px}
+.sv{font-size:18px;font-weight:700;color:#1a2940;word-break:break-all}
+.sl{font-size:11px;color:#64748b;margin-top:2px}
+.sumbox{background:#eff6ff;border-radius:8px;padding:10px 12px;font-size:13px;color:#1d4ed8;margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{padding:6px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer}
+.tab.on{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+table.ct{width:100%;border-collapse:collapse;font-size:13px}
+table.ct th{text-align:left;padding:8px 10px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0;font-size:11px;text-transform:uppercase}
+table.ct td{padding:7px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+table.ct tr:last-child td{border-bottom:none}
+.orig{font-family:monospace;font-size:12px;color:#dc2626;background:#fef2f2;padding:2px 5px;border-radius:4px}
+.modf{font-family:monospace;font-size:12px;color:#15803d;background:#f0fdf4;padding:2px 5px;border-radius:4px}
+.pg{color:#94a3b8;font-size:12px}
+.empty{padding:20px;text-align:center;color:#94a3b8;font-size:13px}
+.pills{display:flex;flex-wrap:wrap;gap:7px}
+.pill{display:inline-flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:20px;padding:4px 12px;font-size:12px}
+.pf{font-family:monospace;color:#dc2626}
+.pt{font-family:monospace;color:#15803d}
+.pa{color:#94a3b8;font-size:10px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero">
+    <h1>⚡ IB Exam Modifier</h1>
+    <p class="sub">5–10% linguistic substitution · zero layout change · 100% format preservation</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔑 Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" id="akey" placeholder="sk-ant-api03-..." oninput="chk()">
+      <button class="show-btn" onclick="toggleShow()">Show</button>
+    </div>
+    <div class="note">🔒 يُستخدم مباشرة مع Anthropic API ولا يُخزّن في أي مكان.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📄 Upload Files</div>
+    <div class="upload-row">
+      <div class="dz" id="qz" onclick="document.getElementById('qi').click()" ondragover="dov(event,'q')" ondragleave="dlv('q')" ondrop="ddp(event,'q')">
+        <input type="file" id="qi" accept=".pdf" onchange="sel('q',this)">
+        <div class="dz-ico">📝</div>
+        <div class="dz-lbl" id="ql">Question Paper (QP)</div>
+        <div class="dz-hint" id="qh">Click or drag PDF</div>
+      </div>
+      <div class="dz" id="mz" onclick="document.getElementById('mi').click()" ondragover="dov(event,'m')" ondragleave="dlv('m')" ondrop="ddp(event,'m')">
+        <input type="file" id="mi" accept=".pdf" onchange="sel('m',this)">
+        <div class="dz-ico">✅</div>
+        <div class="dz-lbl" id="ml">Mark Scheme (MS)</div>
+        <div class="dz-hint" id="mh">Click or drag PDF</div>
+      </div>
+    </div>
+    <button class="btn-run" id="rbtn" onclick="go()" disabled>⚡ Apply modifications</button>
+    <div class="pbar-wrap" id="pg">
+      <div class="pbar"><div class="pfill" id="pf"></div></div>
+      <div class="pmsg" id="pm"></div>
+    </div>
+    <div class="err" id="er"></div>
+  </div>
+
+  <div class="card res-card" id="rc">
+    <div class="card-title">📊 Modification Report</div>
+    <div class="tabs" id="tb"></div>
+    <div id="rb"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔄 Substitution Rules</div>
+    <div class="pills" id="pillbox"></div>
+  </div>
+</div>
+
+<script>
+var files={q:null,m:null};
+var RULES=[["student","candidate"],["students","candidates"],["investigate","examine"],["explore","examine"],["determine","calculate"],["container","vessel"],["tablet","medicine tablet"],["show that","demonstrate that"],["outline","summarise"],["use","utilise"],["used","utilised"],["using","utilising"]];
+
+(function(){
+  var h='';
+  for(var i=0;i<RULES.length;i++){
+    h+='<span class="pill"><span class="pf">'+RULES[i][0]+'</span><span class="pa">→</span><span class="pt">'+RULES[i][1]+'</span></span>';
+  }
+  document.getElementById('pillbox').innerHTML=h;
+})();
+
+function toggleShow(){
+  var inp=document.getElementById('akey');
+  inp.type=inp.type==='password'?'text':'password';
+  event.target.textContent=inp.type==='password'?'Show':'Hide';
+}
+function dov(e,t){e.preventDefault();document.getElementById(t+'z').style.borderColor='#378ADD';}
+function dlv(t){document.getElementById(t+'z').style.borderColor='';}
+function ddp(e,t){e.preventDefault();dlv(t);var f=e.dataTransfer.files[0];if(f&&f.name.toLowerCase().endsWith('.pdf'))setF(t,f);}
+function sel(t,inp){if(inp.files[0])setF(t,inp.files[0]);}
+function setF(t,f){
+  files[t]=f;
+  document.getElementById(t+'z').classList.add('ok');
+  document.getElementById(t+'l').textContent=f.name.length>22?f.name.substring(0,20)+'…':f.name;
+  document.getElementById(t+'h').textContent=(f.size/1024).toFixed(0)+' KB';
+  chk();
+}
+function chk(){
+  document.getElementById('rbtn').disabled=!(files.q||files.m)||!document.getElementById('akey').value.trim();
+}
+function sp(pct,msg){document.getElementById('pf').style.width=pct+'%';document.getElementById('pm').textContent=msg;}
+
+function toB64(file){
+  return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+}
+
+function makePrompt(type,fname){
+  return 'You are an IB exam linguistic modifier. Analyse this IB '+(type==='m'?'Mark Scheme':'Question Paper')+' PDF named "'+fname+'".\n\nFind ONLY safe linguistic substitutions (max 5-10% of total words).\n\nALLOWED (complete words only, never inside equations/formulas/numbers/labels):\n- student/students to candidate/candidates\n- investigate/explore to examine\n- determine to calculate\n- container to vessel\n- tablet to medicine tablet\n- show that to demonstrate that\n- outline to summarise\n- use/used/using to utilise/utilised/utilising\n'+(type==='m'?'\nMARK SCHEME: Only change instruction words. NEVER touch solutions, calculations, marks, answers.\n':'')+'\nNEVER change: equations, formulas, numbers, units, chemical symbols, table data, labels, headers, footers, page numbers.\n\nReply ONLY with valid JSON (no markdown):\n{"changes":[{"page":1,"original":"word","modified":"replacement"}],"modification_rate":"X%","total_substitutions":0,"summary":"one sentence"}\n\nIf nothing to change: {"changes":[],"modification_rate":"0%","total_substitutions":0,"summary":"No safe substitutions found."}';
+}
+
+function processOne(type,file,key){
+  return toB64(file).then(function(b64){
+    return fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:makePrompt(type,file.name)}]}]})
+    });
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.error)throw new Error(data.error.message);
+    var raw=data.content.map(function(i){return i.text||'';}).join('');
+    var m=raw.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
+    if(!m)throw new Error('Could not parse response');
+    var p=JSON.parse(m[0]);p.filename=file.name;return p;
+  });
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderTab(k){
+  var d=window._res[k];var ch=d.changes||[];
+  var h='<div class="stats"><div class="stat"><div class="sv" style="font-size:12px">'+esc(d.filename)+'</div><div class="sl">file</div></div><div class="stat"><div class="sv">'+ch.length+'</div><div class="sl">substitutions</div></div><div class="stat"><div class="sv">'+esc(d.modification_rate||'0%')+'</div><div class="sl">modification rate</div></div></div>';
+  if(d.summary)h+='<div class="sumbox">💡 '+esc(d.summary)+'</div>';
+  if(ch.length>0){
+    h+='<div style="overflow-x:auto"><table class="ct"><thead><tr><th>Page</th><th>Original</th><th></th><th>Modified</th></tr></thead><tbody>';
+    for(var i=0;i<ch.length;i++)h+='<tr><td class="pg">'+esc(ch[i].page||'—')+'</td><td><span class="orig">'+esc(ch[i].original)+'</span></td><td style="color:#94a3b8;text-align:center">→</td><td><span class="modf">'+esc(ch[i].modified)+'</span></td></tr>';
+    h+='</tbody></table></div>';
+  }else h+='<div class="empty">✓ No safe substitutions found.</div>';
+  document.getElementById('rb').innerHTML=h;
+}
+
+function switchTab(k){
+  window._activeTab=k;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.k===k);});
+  renderTab(k);
+}
+
+function showResults(r){
+  var keys=Object.keys(r);window._res=r;
+  var tabsEl=document.getElementById('tb');
+  tabsEl.innerHTML=keys.length>1?keys.map(function(k,i){return'<button class="tab'+(i===0?' on':'')+'" data-k="'+k+'" onclick="switchTab(\''+k+'\')">'+k.toUpperCase()+'</button>';}).join(''):'';
+  renderTab(keys[0]);
+  document.getElementById('rc').classList.add('show');
+}
+
+function go(){
+  var key=document.getElementById('akey').value.trim();
+  if(!key){document.getElementById('er').textContent='الرجاء إدخال API Key أولاً.';document.getElementById('er').classList.add('show');return;}
+  document.getElementById('rbtn').disabled=true;
+  document.getElementById('pg').classList.add('show');
+  document.getElementById('er').classList.remove('show');
+  document.getElementById('rc').classList.remove('show');
+  var entries=[];
+  if(files.q)entries.push(['q',files.q]);
+  if(files.m)entries.push(['m',files.m]);
+  var allRes={};var i=0;
+  function next(){
+    if(i>=entries.length){sp(100,'Done ✓');showResults(allRes);setTimeout(function(){document.getElementById('pg').classList.remove('show');},800);document.getElementById('rbtn').disabled=false;chk();return;}
+    var type=entries[i][0];var file=entries[i][1];
+    sp(Math.round(i/entries.length*70)+10,'Processing '+type.toUpperCase()+': '+file.name+'…');
+    processOne(type,file,key).then(function(res){allRes[type]=res;i++;sp(Math.round(i/entries.length*80)+10,type.toUpperCase()+' complete ✓');next();}).catch(function(e){
+      document.getElementById('er').textContent='Error: '+(e.message||'Failed. Check API key.');
+      document.getElementById('er').classList.add('show');
+      document.getElementById('pg').classList.remove('show');
+      document.getElementById('rbtn').disabled=false;chk();
+    });
+  }
+  next();
+}
+</script>
+</body>
+</html>
