@@ -15,7 +15,6 @@ h1{font-size:26px;font-weight:700;margin-bottom:6px}
 .card-title{font-size:11px;font-weight:700;color:#888;letter-spacing:.8px;text-transform:uppercase;margin-bottom:14px}
 .api-row{display:flex;gap:8px}
 .api-row input{flex:1;padding:9px 12px;border:1px solid #dde3ed;border-radius:8px;font-size:13px;font-family:monospace;background:#f8fafc}
-.api-row input:focus{outline:2px solid #378ADD;border-color:#378ADD}
 .show-btn{padding:0 14px;border:1px solid #dde3ed;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#555}
 .note{font-size:12px;color:#888;margin-top:8px}
 .upload-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
@@ -26,8 +25,7 @@ h1{font-size:26px;font-weight:700;margin-bottom:6px}
 .dz-lbl{font-size:13px;font-weight:600;color:#334155}
 .dz-hint{font-size:11px;color:#94a3b8;margin-top:2px}
 input[type=file]{display:none}
-.btn-run{width:100%;padding:12px;border-radius:10px;border:none;background:#378ADD;color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s}
-.btn-run:hover{opacity:.88}
+.btn-run{width:100%;padding:12px;border-radius:10px;border:none;background:#378ADD;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
 .btn-run:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
 .pbar-wrap{margin-top:12px;display:none}
 .pbar-wrap.show{display:block}
@@ -112,107 +110,28 @@ table.ct tr:last-child td{border-bottom:none}
     <div class="pills" id="pillbox"></div>
   </div>
 </div>
-
 <script>
 var files={q:null,m:null};
 var RULES=[["student","candidate"],["students","candidates"],["investigate","examine"],["explore","examine"],["determine","calculate"],["container","vessel"],["tablet","medicine tablet"],["show that","demonstrate that"],["outline","summarise"],["use","utilise"],["used","utilised"],["using","utilising"]];
-
-(function(){
-  var h='';
-  for(var i=0;i<RULES.length;i++){
-    h+='<span class="pill"><span class="pf">'+RULES[i][0]+'</span><span class="pa">→</span><span class="pt">'+RULES[i][1]+'</span></span>';
-  }
-  document.getElementById('pillbox').innerHTML=h;
-})();
-
-function toggleShow(){
-  var inp=document.getElementById('akey');
-  inp.type=inp.type==='password'?'text':'password';
-  event.target.textContent=inp.type==='password'?'Show':'Hide';
-}
+(function(){var h='';for(var i=0;i<RULES.length;i++)h+='<span class="pill"><span class="pf">'+RULES[i][0]+'</span><span class="pa">→</span><span class="pt">'+RULES[i][1]+'</span></span>';document.getElementById('pillbox').innerHTML=h;})();
+function toggleShow(){var inp=document.getElementById('akey');inp.type=inp.type==='password'?'text':'password';event.target.textContent=inp.type==='password'?'Show':'Hide';}
 function dov(e,t){e.preventDefault();document.getElementById(t+'z').style.borderColor='#378ADD';}
 function dlv(t){document.getElementById(t+'z').style.borderColor='';}
 function ddp(e,t){e.preventDefault();dlv(t);var f=e.dataTransfer.files[0];if(f&&f.name.toLowerCase().endsWith('.pdf'))setF(t,f);}
 function sel(t,inp){if(inp.files[0])setF(t,inp.files[0]);}
-function setF(t,f){
-  files[t]=f;
-  document.getElementById(t+'z').classList.add('ok');
-  document.getElementById(t+'l').textContent=f.name.length>22?f.name.substring(0,20)+'…':f.name;
-  document.getElementById(t+'h').textContent=(f.size/1024).toFixed(0)+' KB';
-  chk();
-}
-function chk(){
-  document.getElementById('rbtn').disabled=!(files.q||files.m)||!document.getElementById('akey').value.trim();
-}
+function setF(t,f){files[t]=f;document.getElementById(t+'z').classList.add('ok');document.getElementById(t+'l').textContent=f.name.length>22?f.name.substring(0,20)+'…':f.name;document.getElementById(t+'h').textContent=(f.size/1024).toFixed(0)+' KB';chk();}
+function chk(){document.getElementById('rbtn').disabled=!(files.q||files.m)||!document.getElementById('akey').value.trim();}
 function sp(pct,msg){document.getElementById('pf').style.width=pct+'%';document.getElementById('pm').textContent=msg;}
-
-function toB64(file){
-  return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
-}
-
-function makePrompt(type,fname){
-  return 'You are an IB exam linguistic modifier. Analyse this IB '+(type==='m'?'Mark Scheme':'Question Paper')+' PDF named "'+fname+'".\n\nFind ONLY safe linguistic substitutions (max 5-10% of total words).\n\nALLOWED (complete words only, never inside equations/formulas/numbers/labels):\n- student/students to candidate/candidates\n- investigate/explore to examine\n- determine to calculate\n- container to vessel\n- tablet to medicine tablet\n- show that to demonstrate that\n- outline to summarise\n- use/used/using to utilise/utilised/utilising\n'+(type==='m'?'\nMARK SCHEME: Only change instruction words. NEVER touch solutions, calculations, marks, answers.\n':'')+'\nNEVER change: equations, formulas, numbers, units, chemical symbols, table data, labels, headers, footers, page numbers.\n\nReply ONLY with valid JSON (no markdown):\n{"changes":[{"page":1,"original":"word","modified":"replacement"}],"modification_rate":"X%","total_substitutions":0,"summary":"one sentence"}\n\nIf nothing to change: {"changes":[],"modification_rate":"0%","total_substitutions":0,"summary":"No safe substitutions found."}';
-}
-
-// CORS proxy list - tries each one until success
-var PROXIES = [
-  'https://corsproxy.io/?',
-  'https://api.allorigins.win/raw?url=',
-  'https://cors-anywhere.herokuapp.com/'
-];
-
-function tryFetch(proxyIdx, body, key) {
-  if (proxyIdx >= PROXIES.length) {
-    return Promise.reject(new Error('All proxies failed. Try opening the site in a different browser.'));
-  }
-  var targetUrl = 'https://api.anthropic.com/v1/messages';
-  var url = PROXIES[proxyIdx] + encodeURIComponent(targetUrl);
-  
-  return fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'x-requested-with': 'XMLHttpRequest'
-    },
-    body: body
-  }).then(function(r) {
-    if (!r.ok && r.status !== 200) throw new Error('Proxy ' + proxyIdx + ' failed with status ' + r.status);
-    return r.json();
-  }).catch(function(e) {
-    console.warn('Proxy ' + proxyIdx + ' failed:', e.message);
-    return tryFetch(proxyIdx + 1, body, key);
-  });
-}
-
+function toB64(file){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});}
+function makePrompt(type,fname){return 'You are an IB exam linguistic modifier. Analyse this IB '+(type==='m'?'Mark Scheme':'Question Paper')+' PDF named "'+fname+'".\n\nFind ONLY safe linguistic substitutions (max 5-10% of total words).\n\nALLOWED:\n- student/students → candidate/candidates\n- investigate/explore → examine\n- determine → calculate\n- container → vessel\n- tablet → medicine tablet\n- show that → demonstrate that\n- outline → summarise\n- use/used/using → utilise/utilised/utilising\n\nNEVER change: equations, formulas, numbers, units, symbols, table data, headers, footers.\n\nReply ONLY with valid JSON:\n{"changes":[{"page":1,"original":"word","modified":"replacement"}],"modification_rate":"X%","total_substitutions":0,"summary":"one sentence"}';}
 function processOne(type,file,key){
   return toB64(file).then(function(b64){
-    var body = JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:1000,
-      messages:[{role:'user',content:[
-        {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
-        {type:'text',text:makePrompt(type,file.name)}
-      ]}]
-    });
-    // First try direct (works locally), then try proxies
-    return fetch('https://api.anthropic.com/v1/messages', {
+    return fetch('/.netlify/functions/proxy',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key':key,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body: body
-    }).then(function(r){
-      if(!r.ok) throw new Error('Direct failed');
-      return r.json();
-    }).catch(function(){
-      return tryFetch(0, body, key);
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({apiKey:key,model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:makePrompt(type,file.name)}]}]})
     });
-  }).then(function(data){
+  }).then(function(r){return r.json();}).then(function(data){
     if(data.error)throw new Error(data.error.message);
     var raw=data.content.map(function(i){return i.text||'';}).join('');
     var m=raw.replace(/```json|```/g,'').match(/\{[\s\S]*\}/);
@@ -220,56 +139,28 @@ function processOne(type,file,key){
     var p=JSON.parse(m[0]);p.filename=file.name;return p;
   });
 }
-
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
 function renderTab(k){
   var d=window._res[k];var ch=d.changes||[];
   var h='<div class="stats"><div class="stat"><div class="sv" style="font-size:12px">'+esc(d.filename)+'</div><div class="sl">file</div></div><div class="stat"><div class="sv">'+ch.length+'</div><div class="sl">substitutions</div></div><div class="stat"><div class="sv">'+esc(d.modification_rate||'0%')+'</div><div class="sl">modification rate</div></div></div>';
   if(d.summary)h+='<div class="sumbox">💡 '+esc(d.summary)+'</div>';
-  if(ch.length>0){
-    h+='<div style="overflow-x:auto"><table class="ct"><thead><tr><th>Page</th><th>Original</th><th></th><th>Modified</th></tr></thead><tbody>';
-    for(var i=0;i<ch.length;i++)h+='<tr><td class="pg">'+esc(ch[i].page||'—')+'</td><td><span class="orig">'+esc(ch[i].original)+'</span></td><td style="color:#94a3b8;text-align:center">→</td><td><span class="modf">'+esc(ch[i].modified)+'</span></td></tr>';
-    h+='</tbody></table></div>';
-  }else h+='<div class="empty">✓ No safe substitutions found.</div>';
+  if(ch.length>0){h+='<div style="overflow-x:auto"><table class="ct"><thead><tr><th>Page</th><th>Original</th><th></th><th>Modified</th></tr></thead><tbody>';for(var i=0;i<ch.length;i++)h+='<tr><td class="pg">'+esc(ch[i].page||'—')+'</td><td><span class="orig">'+esc(ch[i].original)+'</span></td><td style="color:#94a3b8;text-align:center">→</td><td><span class="modf">'+esc(ch[i].modified)+'</span></td></tr>';h+='</tbody></table></div>';}
+  else h+='<div class="empty">✓ No safe substitutions found.</div>';
   document.getElementById('rb').innerHTML=h;
 }
-
-function switchTab(k){
-  window._activeTab=k;
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.k===k);});
-  renderTab(k);
-}
-
-function showResults(r){
-  var keys=Object.keys(r);window._res=r;
-  var tabsEl=document.getElementById('tb');
-  tabsEl.innerHTML=keys.length>1?keys.map(function(k,i){return'<button class="tab'+(i===0?' on':'')+'" data-k="'+k+'" onclick="switchTab(\''+k+'\')">'+k.toUpperCase()+'</button>';}).join(''):'';
-  renderTab(keys[0]);
-  document.getElementById('rc').classList.add('show');
-}
-
+function switchTab(k){window._activeTab=k;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.k===k);});renderTab(k);}
+function showResults(r){var keys=Object.keys(r);window._res=r;var tabsEl=document.getElementById('tb');tabsEl.innerHTML=keys.length>1?keys.map(function(k,i){return'<button class="tab'+(i===0?' on':'')+'" data-k="'+k+'" onclick="switchTab(\''+k+'\')">'+k.toUpperCase()+'</button>';}).join(''):'';renderTab(keys[0]);document.getElementById('rc').classList.add('show');}
 function go(){
   var key=document.getElementById('akey').value.trim();
   if(!key){document.getElementById('er').textContent='الرجاء إدخال API Key أولاً.';document.getElementById('er').classList.add('show');return;}
-  document.getElementById('rbtn').disabled=true;
-  document.getElementById('pg').classList.add('show');
-  document.getElementById('er').classList.remove('show');
-  document.getElementById('rc').classList.remove('show');
-  var entries=[];
-  if(files.q)entries.push(['q',files.q]);
-  if(files.m)entries.push(['m',files.m]);
+  document.getElementById('rbtn').disabled=true;document.getElementById('pg').classList.add('show');document.getElementById('er').classList.remove('show');document.getElementById('rc').classList.remove('show');
+  var entries=[];if(files.q)entries.push(['q',files.q]);if(files.m)entries.push(['m',files.m]);
   var allRes={};var i=0;
   function next(){
     if(i>=entries.length){sp(100,'Done ✓');showResults(allRes);setTimeout(function(){document.getElementById('pg').classList.remove('show');},800);document.getElementById('rbtn').disabled=false;chk();return;}
     var type=entries[i][0];var file=entries[i][1];
     sp(Math.round(i/entries.length*70)+10,'Processing '+type.toUpperCase()+': '+file.name+'…');
-    processOne(type,file,key).then(function(res){allRes[type]=res;i++;sp(Math.round(i/entries.length*80)+10,type.toUpperCase()+' complete ✓');next();}).catch(function(e){
-      document.getElementById('er').textContent='Error: '+(e.message||'Failed. Check API key.');
-      document.getElementById('er').classList.add('show');
-      document.getElementById('pg').classList.remove('show');
-      document.getElementById('rbtn').disabled=false;chk();
-    });
+    processOne(type,file,key).then(function(res){allRes[type]=res;i++;next();}).catch(function(e){document.getElementById('er').textContent='Error: '+(e.message||'Failed.');document.getElementById('er').classList.add('show');document.getElementById('pg').classList.remove('show');document.getElementById('rbtn').disabled=false;chk();});
   }
   next();
 }
