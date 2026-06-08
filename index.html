@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IB Exam Booklet Generator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#f4f4f0;color:#1a1a18;min-height:100vh;padding:2rem 1rem}
+.container{max-width:820px;margin:0 auto}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.subtitle{font-size:13px;color:#5f5e5a;margin-bottom:2rem}
+.card{background:white;border-radius:12px;border:1px solid #e0dfd7;padding:1.5rem;margin-bottom:1rem}
+.card h2{font-size:14px;font-weight:600;margin-bottom:.5rem}
+.card-sub{font-size:12px;color:#5f5e5a;margin-bottom:1rem}
+
+/* Upload zones */
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.upload-zone{border:2px dashed #d4d2c9;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;transition:all .15s}
+.upload-zone:hover{border-color:#378ADD;background:#f0f6ff}
+.upload-zone.has-file{border-style:solid;border-color:#5a9e1a;background:#f0f8e8}
+.uz-icon{font-size:26px;margin-bottom:6px}
+.uz-label{font-size:13px;font-weight:500;margin-bottom:2px}
+.uz-sub{font-size:11px;color:#888}
+.uz-file{font-size:11px;font-weight:500;color:#3b6d11;margin-top:4px;word-break:break-all}
+
+/* Buttons */
+.gen-btn{width:100%;padding:14px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,#185fa5,#3b6d11);color:white;display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity .12s}
+.gen-btn:hover{opacity:.9}
+.gen-btn:disabled{opacity:.4;cursor:not-allowed}
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.dl-item{background:#f9f9f7;border:1px solid #e0dfd7;border-radius:10px;padding:1.25rem;display:flex;flex-direction:column;gap:10px}
+.dl-item-header{display:flex;align-items:center;gap:10px}
+.dl-icon{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:#e6f1fb}
+.dl-icon.ms{background:#eaf3de}
+.dl-item-info h3{font-size:13px;font-weight:600;margin-bottom:2px}
+.dl-item-info p{font-size:11px;color:#888}
+.dl-btn{width:100%;padding:9px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:6px;transition:opacity .12s}
+.dl-btn:hover{opacity:.85}
+.dl-btn:disabled{opacity:.4;cursor:not-allowed}
+.qp-btn{background:#185fa5;color:white}
+.ms-btn{background:#3b6d11;color:white}
+.dl-all{width:100%;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,#185fa5,#0c447c);color:white;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .12s}
+.dl-all:hover{opacity:.9}
+.dl-all:disabled{opacity:.4;cursor:not-allowed}
+
+/* Progress */
+.progress-card{display:none;background:white;border-radius:12px;border:1px solid #e0dfd7;padding:1.5rem;margin-bottom:1rem}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.progress-title{font-size:14px;font-weight:500}
+.progress-pct{font-size:13px;color:#888}
+.bar-wrap{height:6px;background:#eee;border-radius:3px;margin-bottom:12px}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#185fa5,#3b6d11);transition:width .4s}
+.log{font-size:12px;color:#666;max-height:120px;overflow-y:auto}
+.log-line{padding:3px 0;display:flex;align-items:center;gap:8px}
+.log-line.done{color:#3b6d11}
+.log-line.active{color:#185fa5}
+.log-line.err{color:#cc3333}
+.spinner{width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Result */
+.result-card{display:none;background:white;border-radius:12px;border:1px solid #c0dd97;padding:1.5rem;margin-bottom:1rem}
+.result-card.visible{display:block}
+.result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.badge{background:#eaf3de;color:#3b6d11;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:500}
+
+/* Static downloads */
+.static-card{background:linear-gradient(135deg,#f0f6ff,#e6f1fb);border:1px solid #b5d4f4;border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+.static-card h2{font-size:14px;font-weight:600;color:#185fa5;margin-bottom:.3rem}
+.static-sub{font-size:12px;color:#5f5e5a;margin-bottom:1rem}
+.dl-status{display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:12px}
+.dl-status.ready{background:#eaf3de;color:#3b6d11}
+.dl-status.missing{background:#fff3cd;color:#856404}
+.divider{border:none;border-top:1px solid #e0dfd7;margin:1.5rem 0}
+.ready-msg{font-size:12px;color:#888;margin-top:8px;text-align:center}
+.ready-msg.ok{color:#3b6d11}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📘 IB Exam Booklet Generator</h1>
+  <p class="subtitle">Upload your original IB exam PDFs — we modify ~30% of the content while preserving 100% of the layout</p>
+
+  <!-- ══ UPLOAD + GENERATE ══════════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>📂 Step 1 — Upload Original PDF Files</h2>
+    <p class="card-sub">Upload the original IB Question Paper and Mark Scheme. They will be used as templates — all formatting, answer boxes and graphics will be preserved.</p>
+
+    <div class="upload-grid">
+      <!-- QP -->
+      <div>
+        <div class="upload-zone" id="qpZone" onclick="document.getElementById('qpInput').click()">
+          <div class="uz-icon">📄</div>
+          <div class="uz-label">Question Paper (QP)</div>
+          <div class="uz-sub">Click to upload PDF</div>
+          <div class="uz-file" id="qpName"></div>
+        </div>
+        <input type="file" id="qpInput" accept=".pdf" style="display:none">
+      </div>
+      <!-- MS -->
+      <div>
+        <div class="upload-zone" id="msZone" onclick="document.getElementById('msInput').click()">
+          <div class="uz-icon">✅</div>
+          <div class="uz-label">Mark Scheme (MS)</div>
+          <div class="uz-sub">Click to upload PDF</div>
+          <div class="uz-file" id="msName"></div>
+        </div>
+        <input type="file" id="msInput" accept=".pdf" style="display:none">
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:.5rem;margin-top:.5rem">✨ Step 2 — Generate</h2>
+    <p class="card-sub">Modifies ~30% of the content (chemicals, values, scenarios) directly inside the original PDF — same layout, same pages, same formatting.</p>
+
+    <button class="gen-btn" id="generateBtn" onclick="startGeneration()" disabled>
+      ✨ Generate Modified Papers
+    </button>
+    <p class="ready-msg" id="readyMsg">Upload both PDF files to enable generation</p>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-card" id="progressCard">
+    <div class="progress-header">
+      <span class="progress-title" id="progressTitle">Generating...</span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="bar-wrap"><div class="bar-fill" id="progressBar" style="width:0%"></div></div>
+    <div class="log" id="progressLog"></div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <h2>📄 Generated Papers</h2>
+      <span class="badge">✅ Ready</span>
+    </div>
+    <p style="font-size:12px;color:#5f5e5a;margin-bottom:1rem">
+      Same layout as original · ~30% content modified · All pages preserved
+    </p>
+    <div class="dl-grid">
+      <div class="dl-item">
+        <div class="dl-item-header">
+          <div class="dl-icon">📄</div>
+          <div class="dl-item-info"><h3>Question Paper</h3><p>Modified · Original layout</p></div>
+        </div>
+        <button class="dl-btn qp-btn" id="btnQP" onclick="downloadResult('qp')" disabled>
+          ⏳ Preparing...
+        </button>
+      </div>
+      <div class="dl-item">
+        <div class="dl-item-header">
+          <div class="dl-icon ms">✅</div>
+          <div class="dl-item-info"><h3>Mark Scheme</h3><p>Modified · Original layout</p></div>
+        </div>
+        <button class="dl-btn ms-btn" id="btnMS" onclick="downloadResult('ms')" disabled>
+          ⏳ Preparing...
+        </button>
+      </div>
+    </div>
+    <button class="dl-all" id="btnAll" onclick="downloadAll()" disabled style="opacity:.4">
+      📦 Download Both — ZIP (QP + MS)
+    </button>
+    <div style="margin-top:10px;text-align:center">
+      <button onclick="resetAll()" style="background:none;border:1px solid #ddd;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:13px;color:#666">
+        🔄 Start Over
+      </button>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ══ PRE-MADE DOWNLOADS ════════════════════════════════════════════════ -->
+  <div class="static-card">
+    <h2>⬇️ Ready-Made Practice Papers</h2>
+    <p class="static-sub">Pre-modified Chemistry HL Paper 2 — download instantly without uploading anything</p>
+    <div id="dlStatus" class="dl-status ready"><span>⏳</span> Checking...</div>
+    <div class="dl-grid">
+      <div class="dl-item">
+        <div class="dl-item-header">
+          <div class="dl-icon">📄</div>
+          <div class="dl-item-info"><h3>Question Paper</h3><p>Chemistry HL · Paper 2</p></div>
+        </div>
+        <a class="dl-btn qp-btn" href="/download/qp" download>⬇️ Download QP</a>
+      </div>
+      <div class="dl-item">
+        <div class="dl-item-header">
+          <div class="dl-icon ms">✅</div>
+          <div class="dl-item-info"><h3>Mark Scheme</h3><p>Chemistry HL · Paper 2</p></div>
+        </div>
+        <a class="dl-btn ms-btn" href="/download/ms" download>⬇️ Download MS</a>
+      </div>
+    </div>
+    <a class="dl-all" href="/download/all" download>📦 Download Both — ZIP</a>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+let qpFile = null, msFile = null, qpBlob = null, msBlob = null;
+
+// ── Server status ─────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch('/status');
+    const d = await r.json();
+    const st = document.getElementById('dlStatus');
+    if (d.qp && d.ms) {
+      const qk = Math.round(d.qp_size/1024), mk = Math.round(d.ms_size/1024);
+      st.className = 'dl-status ready';
+      st.innerHTML = `<span>✅</span> Both files ready — QP: ${qk} KB · MS: ${mk} KB`;
+    } else {
+      st.className = 'dl-status missing';
+      st.innerHTML = `<span>⚠️</span> ${!d.qp?'QP missing ':''}${!d.ms?'MS missing':''}`;
+    }
+  } catch {
+    document.getElementById('dlStatus').innerHTML = '<span>⚠️</span> Could not reach server';
+  }
+}
+checkStatus();
+
+// ── File inputs ───────────────────────────────────────────────────────────
+document.getElementById('qpInput').addEventListener('change', e => {
+  qpFile = e.target.files[0];
+  if (qpFile) {
+    document.getElementById('qpZone').classList.add('has-file');
+    document.getElementById('qpName').textContent = '✓ ' + qpFile.name;
+  }
+  checkReady();
+});
+document.getElementById('msInput').addEventListener('change', e => {
+  msFile = e.target.files[0];
+  if (msFile) {
+    document.getElementById('msZone').classList.add('has-file');
+    document.getElementById('msName').textContent = '✓ ' + msFile.name;
+  }
+  checkReady();
+});
+
+function checkReady() {
+  const btn = document.getElementById('generateBtn');
+  const msg = document.getElementById('readyMsg');
+  if (qpFile && msFile) {
+    btn.disabled = false;
+    msg.textContent = '✓ Both files uploaded — ready to generate';
+    msg.className = 'ready-msg ok';
+  } else {
+    btn.disabled = true;
+    msg.textContent = !qpFile && !msFile
+      ? 'Upload both PDF files to enable generation'
+      : !qpFile ? 'Upload the Question Paper PDF'
+      : 'Upload the Mark Scheme PDF';
+    msg.className = 'ready-msg';
+  }
+}
+
+// ── Logging ───────────────────────────────────────────────────────────────
+function log(msg, status='active') {
+  const el = document.getElementById('progressLog');
+  const d  = document.createElement('div');
+  d.className = 'log-line ' + status;
+  const icon = status==='done' ? '<span>✓</span>'
+             : status==='active' ? '<span class="spinner"></span>'
+             : status==='err' ? '<span>✗</span>' : '<span>•</span>';
+  d.innerHTML = icon + ' <span>' + msg + '</span>';
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+  return d;
+}
+
+function setProgress(pct, title) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  if (title) document.getElementById('progressTitle').textContent = title;
+}
+
+// ── Main generation ───────────────────────────────────────────────────────
+async function startGeneration() {
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('progressCard').style.display = 'block';
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('progressLog').innerHTML = '';
+  qpBlob = null; msBlob = null;
+
+  try {
+    // Step 1: Upload + Generate QP
+    setProgress(10, 'Processing Question Paper...');
+    const l1 = log('Uploading and modifying QP (' + Math.round(qpFile.size/1024) + ' KB)...');
+    const formQP = new FormData();
+    formQP.append('file', qpFile);
+    formQP.append('type', 'qp');
+    const qpResp = await fetch('/api/generate-pdf', { method: 'POST', body: formQP });
+    if (!qpResp.ok) {
+      const e = await qpResp.json().catch(()=>({}));
+      throw new Error(e.error || 'QP generation failed: ' + qpResp.status);
+    }
+    qpBlob = await qpResp.blob();
+    l1.innerHTML = '✓ <span>QP ready (' + Math.round(qpBlob.size/1024) + ' KB)</span>';
+    l1.className = 'log-line done';
+
+    // Step 2: Upload + Generate MS
+    setProgress(55, 'Processing Mark Scheme...');
+    const l2 = log('Uploading and modifying MS (' + Math.round(msFile.size/1024) + ' KB)...');
+    const formMS = new FormData();
+    formMS.append('file', msFile);
+    formMS.append('type', 'ms');
+    const msResp = await fetch('/api/generate-pdf', { method: 'POST', body: formMS });
+    if (!msResp.ok) {
+      const e = await msResp.json().catch(()=>({}));
+      throw new Error(e.error || 'MS generation failed: ' + msResp.status);
+    }
+    msBlob = await msResp.blob();
+    l2.innerHTML = '✓ <span>MS ready (' + Math.round(msBlob.size/1024) + ' KB)</span>';
+    l2.className = 'log-line done';
+
+    setProgress(100, 'Done! ✅');
+    log('Both papers ready — same layout as original', 'done');
+
+    // Unlock
+    document.getElementById('btnQP').disabled = false;
+    document.getElementById('btnMS').disabled = false;
+    document.getElementById('btnAll').disabled = false;
+    document.getElementById('btnAll').style.opacity = '1';
+    document.getElementById('btnQP').textContent = '⬇️ Download QP PDF';
+    document.getElementById('btnMS').textContent = '⬇️ Download MS PDF';
+    document.getElementById('resultCard').classList.add('visible');
+    setTimeout(() =>
+      document.getElementById('resultCard').scrollIntoView({behavior:'smooth'}), 300);
+
+  } catch(err) {
+    log('Error: ' + err.message, 'err');
+    setProgress(0, 'Failed');
+    document.getElementById('generateBtn').disabled = false;
+  }
+}
+
+// ── Downloads ─────────────────────────────────────────────────────────────
+function downloadResult(type) {
+  const blob  = type === 'qp' ? qpBlob : msBlob;
+  const fname = type === 'qp' ? 'IB_Practice_QP_modified.pdf' : 'IB_Practice_MS_modified.pdf';
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function downloadAll() {
+  if (!qpBlob || !msBlob) return;
+  const zip = new JSZip();
+  zip.file('IB_Practice_QP_modified.pdf', qpBlob);
+  zip.file('IB_Practice_MS_modified.pdf', msBlob);
+  const content = await zip.generateAsync({type:'blob', compression:'DEFLATE'});
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'IB_Practice_Papers.zip'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function resetAll() {
+  qpFile = msFile = null; qpBlob = msBlob = null;
+  ['qpZone','msZone'].forEach(id => document.getElementById(id).classList.remove('has-file'));
+  ['qpName','msName'].forEach(id => document.getElementById(id).textContent = '');
+  ['qpInput','msInput'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('progressCard').style.display = 'none';
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('progressLog').innerHTML = '';
+  document.getElementById('btnQP').disabled = true;
+  document.getElementById('btnMS').disabled = true;
+  document.getElementById('btnAll').disabled = true;
+  document.getElementById('btnAll').style.opacity = '.4';
+  document.getElementById('btnQP').textContent = '⏳ Preparing...';
+  document.getElementById('btnMS').textContent = '⏳ Preparing...';
+  checkReady();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+</script>
+</body>
+</html>
