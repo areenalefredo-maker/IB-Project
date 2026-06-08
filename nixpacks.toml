@@ -1,5 +1,0 @@
-[phases.install]
-cmds = ["pip install pymupdf"]
-
-[start]
-cmd = "python server.py"
