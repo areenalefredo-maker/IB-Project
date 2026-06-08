@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
-import json, urllib.request, urllib.error, os, io, zipfile, shutil, tempfile, cgi
+import json, urllib.request, urllib.error, os, io, zipfile, shutil, tempfile, subprocess, sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
+
+# Auto-install PyMuPDF if not present
+try:
+    import fitz
+except ImportError:
+    print("Installing PyMuPDF...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "PyMuPDF==1.24.0", "--quiet"])
+    print("PyMuPDF installed successfully.")
 
 try:
     import fitz
